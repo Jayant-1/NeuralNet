@@ -1,0 +1,16 @@
+.training-errors {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--accent-red-bg);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--accent-red);
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+.training-errors p {
+  margin: 2px 0;
+}
