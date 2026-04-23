@@ -1,15 +1,30 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useAuthStore } from './store/store';
+
 import Navbar from './components/Navbar';
-import HeroSection from './components/HeroSection';
-import WorkspaceSection from './components/WorkspaceSection';
-import DatasetSection from './components/DatasetSection';
-import TrainingSection from './components/TrainingSection';
-import DeploymentSection from './components/DeploymentSection';
-import Footer from './components/Footer';
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
+import DashboardPage from './pages/DashboardPage';
+import ProjectWorkspace from './pages/ProjectWorkspace';
 
 gsap.registerPlugin(ScrollTrigger);
+
+/* ── Auth guard ── */
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuthStore();
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: '#0B0B0F' }}>
+        <div className="w-8 h-8 border-2 border-cyan/30 border-t-cyan rounded-full animate-spin" />
+      </div>
+    );
+  }
+  return user ? children : <Navigate to="/login" replace />;
+}
 
 /* ── Section color map for mouse follower ── */
 const SECTION_COLORS = {
@@ -21,58 +36,61 @@ const SECTION_COLORS = {
 };
 
 export default function App() {
+  const location = useLocation();
+  const isLanding = location.pathname === '/';
+  const isAuth = location.pathname === '/login' || location.pathname === '/signup';
+  const showFollower = isLanding || isAuth;
   const cursorRef = useRef(null);
   const followerRef = useRef(null);
   const mousePos = useRef({ x: -100, y: -100 });
   const cursorPos = useRef({ x: -100, y: -100 });
   const followerPos = useRef({ x: -100, y: -100 });
   const [followerColor, setFollowerColor] = useState(SECTION_COLORS.hero);
+  const { setUser, setLoading } = useAuthStore();
+
+  /* ── Restore auth session ── */
+  useEffect(() => {
+    const storedUser = localStorage.getItem('ll_user');
+    const storedToken = localStorage.getItem('ll_token');
+    if (storedUser && storedToken) {
+      try { setUser(JSON.parse(storedUser)); } catch { localStorage.removeItem('ll_user'); localStorage.removeItem('ll_token'); }
+    }
+    setLoading(false);
+  }, []);
 
   /* ── Custom cursor + mouse follower ── */
   useEffect(() => {
-    const onMove = (e) => {
-      mousePos.current = { x: e.clientX, y: e.clientY };
-    };
+
+    const onMove = (e) => { mousePos.current = { x: e.clientX, y: e.clientY }; };
     const onDown = () => cursorRef.current?.classList.add('clicking');
     const onUp = () => cursorRef.current?.classList.remove('clicking');
 
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mousedown', onDown);
-    window.addEventListener('mouseup', onUp);
-
-    /* hover detection */
     const onOver = (e) => {
       const el = e.target.closest('a, button, [data-hover]');
       if (el) {
         cursorRef.current?.classList.add('hovering');
-        if (el.dataset.hover === 'launch') {
-          cursorRef.current?.classList.add('hovering-launch');
-        }
+        if (el.dataset.hover === 'launch') cursorRef.current?.classList.add('hovering-launch');
       }
     };
     const onOut = (e) => {
       const el = e.target.closest('a, button, [data-hover]');
-      if (el) {
-        cursorRef.current?.classList.remove('hovering', 'hovering-launch');
-      }
+      if (el) cursorRef.current?.classList.remove('hovering', 'hovering-launch');
     };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('mouseup', onUp);
     document.addEventListener('mouseover', onOver);
     document.addEventListener('mouseout', onOut);
 
-    /* animation loop */
     let raf;
     const loop = () => {
       cursorPos.current.x += (mousePos.current.x - cursorPos.current.x) * 0.2;
       cursorPos.current.y += (mousePos.current.y - cursorPos.current.y) * 0.2;
       followerPos.current.x += (mousePos.current.x - followerPos.current.x) * 0.06;
       followerPos.current.y += (mousePos.current.y - followerPos.current.y) * 0.06;
-
-      if (cursorRef.current) {
-        cursorRef.current.style.transform = `translate(${cursorPos.current.x - 10}px, ${cursorPos.current.y - 10}px)`;
-      }
-      if (followerRef.current) {
-        followerRef.current.style.transform = `translate(${followerPos.current.x - 250}px, ${followerPos.current.y - 250}px)`;
-      }
+      if (cursorRef.current) cursorRef.current.style.transform = `translate(${cursorPos.current.x - 10}px, ${cursorPos.current.y - 10}px)`;
+      if (followerRef.current && showFollower) followerRef.current.style.transform = `translate(${followerPos.current.x - 250}px, ${followerPos.current.y - 250}px)`;
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -85,10 +103,11 @@ export default function App() {
       document.removeEventListener('mouseout', onOut);
       cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [showFollower]);
 
-  /* ── Section observer for follower color ── */
+  /* ── Section observer for follower color (landing only) ── */
   useEffect(() => {
+    if (!isLanding) return;
     const sections = document.querySelectorAll('[data-section]');
     const obs = new IntersectionObserver(
       (entries) => {
@@ -103,36 +122,31 @@ export default function App() {
     );
     sections.forEach((s) => obs.observe(s));
     return () => obs.disconnect();
-  }, []);
+  }, [isLanding]);
 
   return (
     <>
-      {/* Grain overlay */}
-      <div className="grain-overlay" />
-
-      {/* Custom cursor */}
+      {/* Global custom cursor */}
       <div ref={cursorRef} className="custom-cursor" />
+      {/* Glow Follower only on specific pages */}
+      {showFollower && <div ref={followerRef} className="mouse-follower" style={{ background: isAuth ? '#8A2BE2' : followerColor }} />}
 
-      {/* Mouse follower glow */}
-      <div
-        ref={followerRef}
-        className="mouse-follower"
-        style={{ background: followerColor }}
-      />
+      {/* Landing-only overlays */}
+      {isLanding && (
+        <>
+          <div className="grain-overlay" />
+          <Navbar />
+        </>
+      )}
 
-      {/* Nav */}
-      <Navbar />
-
-      {/* Sections */}
-      <main>
-        <HeroSection />
-        <WorkspaceSection />
-        <DatasetSection />
-        <TrainingSection />
-        <DeploymentSection />
-      </main>
-
-      <Footer />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/project/:projectId" element={<ProtectedRoute><ProjectWorkspace /></ProtectedRoute>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </>
   );
 }

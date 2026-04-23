@@ -4,3 +4,5 @@ python-dotenv
 pydantic
 python-multipart
 httpx
+numpy
+tensorflow

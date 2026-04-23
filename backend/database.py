@@ -25,7 +25,7 @@ def dict_row(row):
         return None
     d = dict(row)
     # Auto-parse known JSON columns
-    for key in ("graph_data", "config", "metrics"):
+    for key in ("graph_data", "config", "metrics", "preprocessing_config"):
         if key in d and isinstance(d[key], str):
             try:
                 d[key] = json.loads(d[key])
@@ -57,6 +57,9 @@ def init_db():
             description TEXT DEFAULT '',
             template TEXT DEFAULT 'custom',
             graph_data TEXT DEFAULT '{"nodes":[],"edges":[]}',
+            preprocessing_config TEXT DEFAULT '{}',
+            problem_type TEXT DEFAULT 'classification',
+            input_type TEXT DEFAULT 'tabular',
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         );
@@ -124,5 +127,29 @@ def init_db():
     print("[OK] Database initialized")
 
 
-# Auto-init on import
+def migrate_db():
+    """Add any missing columns to existing tables (safe to run on every startup)."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get existing columns in projects table
+    existing = {row[1] for row in cursor.execute("PRAGMA table_info(projects)").fetchall()}
+
+    migrations = [
+        ("preprocessing_config", "TEXT DEFAULT '{}'"),
+        ("problem_type",         "TEXT DEFAULT 'classification'"),
+        ("input_type",           "TEXT DEFAULT 'tabular'"),
+    ]
+
+    for col_name, col_def in migrations:
+        if col_name not in existing:
+            cursor.execute(f"ALTER TABLE projects ADD COLUMN {col_name} {col_def}")
+            print(f"[MIGRATE] Added column projects.{col_name}")
+
+    conn.commit()
+    conn.close()
+
+
+# Auto-init and migrate on import
 init_db()
+migrate_db()

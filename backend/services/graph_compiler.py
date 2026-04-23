@@ -1,12 +1,17 @@
 """
 Graph Compiler — converts JSON graph to Keras model using Python AST
 
-Takes a topologically sorted list of layer definitions and constructs
-a valid Python AST that, when compiled and executed, produces a
-tf.keras Sequential model.
+Two modes:
+  1. compile_graph_to_code()   → returns Python source code string (for display)
+  2. compile_and_build_model() → exec()'s the AST, returns a live tf.keras model
+
+Uses Python's `ast` module to build a valid AST tree, then either
+unparses it to source or compiles+executes it to produce a real model.
 """
 import ast
-from typing import List, Dict, Any
+import sys
+import io
+from typing import List, Dict, Any, Optional, Tuple
 
 
 def topological_sort(layers: List[Dict], connections: List[Dict]) -> List[Dict]:
@@ -36,13 +41,29 @@ def topological_sort(layers: List[Dict], connections: List[Dict]) -> List[Dict]:
     return [layer_map[lid] for lid in sorted_ids if lid in layer_map]
 
 
-def _build_layer_call(layer_type: str, params: Dict[str, Any]) -> ast.expr:
+def _parse_tuple(s):
+    """Parse a string like '(3, 3)' into a Python tuple."""
+    if isinstance(s, (tuple, list)):
+        return tuple(int(x) for x in s)
+    try:
+        s = str(s).strip()
+        if s.startswith("(") and s.endswith(")"):
+            inner = s[1:-1]
+            parts = [int(x.strip()) for x in inner.split(",") if x.strip()]
+            return tuple(parts)
+        # Single number
+        return (int(s),)
+    except (ValueError, AttributeError):
+        pass
+    return (3, 3)
+
+
+def _build_layer_call(layer_type: str, params: Dict[str, Any]) -> Optional[ast.expr]:
     """Build an AST Call node for a Keras layer."""
     keywords = []
 
     if layer_type == "input":
         shape_str = params.get("shape", "(28, 28, 1)")
-        # keras.Input(shape=(...))
         return ast.Call(
             func=ast.Attribute(
                 value=ast.Name(id="keras", ctx=ast.Load()),
@@ -82,6 +103,10 @@ def _build_layer_call(layer_type: str, params: Dict[str, Any]) -> ast.expr:
         if params.get("activation"):
             keywords.append(
                 ast.keyword(arg="activation", value=ast.Constant(value=params["activation"]))
+            )
+        if params.get("padding"):
+            keywords.append(
+                ast.keyword(arg="padding", value=ast.Constant(value=params["padding"]))
             )
         return ast.Call(
             func=ast.Attribute(
@@ -186,41 +211,38 @@ def _build_layer_call(layer_type: str, params: Dict[str, Any]) -> ast.expr:
         )
 
     elif layer_type == "output":
-        # Output is just a marker, skip
-        return None
+        # Output is a Dense layer with configurable units/activation
+        units = int(params.get("units", 10))
+        activation = params.get("activation", "softmax")
+        args = [ast.Constant(value=units)]
+        if activation:
+            keywords.append(
+                ast.keyword(arg="activation", value=ast.Constant(value=activation))
+            )
+        return ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id="layers", ctx=ast.Load()),
+                attr="Dense",
+                ctx=ast.Load(),
+            ),
+            args=args,
+            keywords=keywords,
+        )
 
     else:
-        # Unknown layer — create a comment-like expression
         return None
 
 
-def _parse_tuple(s):
-    """Parse a string like '(3, 3)' into a Python tuple."""
-    if isinstance(s, (tuple, list)):
-        return tuple(s)
-    try:
-        s = str(s).strip()
-        if s.startswith("(") and s.endswith(")"):
-            inner = s[1:-1]
-            parts = [int(x.strip()) for x in inner.split(",") if x.strip()]
-            return tuple(parts)
-    except (ValueError, AttributeError):
-        pass
-    return (3, 3)
-
-
-def compile_graph_to_model(
-    layers_data: List[Dict[str, Any]],
-    connections: List[Dict[str, Any]],
-) -> str:
+def _build_ast_module(
+    sorted_layers: List[Dict],
+    optimizer: str = "adam",
+    loss: str = "categorical_crossentropy",
+    learning_rate: float = 0.001,
+) -> ast.Module:
     """
-    Convert a JSON graph definition to Keras Python code using AST.
-
-    Returns the generated Python source code string.
+    Build a complete Python AST module that, when executed,
+    creates a compiled tf.keras.Sequential model in variable `model`.
     """
-    sorted_layers = topological_sort(layers_data, connections)
-
-    # Build AST module
     module_body = []
 
     # import tensorflow as tf
@@ -229,29 +251,40 @@ def compile_graph_to_model(
     )
     # from tensorflow import keras
     module_body.append(
-        ast.ImportFrom(
-            module="tensorflow",
-            names=[ast.alias(name="keras")],
-            level=0,
-        )
+        ast.ImportFrom(module="tensorflow", names=[ast.alias(name="keras")], level=0)
     )
     # from tensorflow.keras import layers
     module_body.append(
-        ast.ImportFrom(
-            module="tensorflow.keras",
-            names=[ast.alias(name="layers")],
-            level=0,
-        )
+        ast.ImportFrom(module="tensorflow.keras", names=[ast.alias(name="layers")], level=0)
     )
 
-    # Build Sequential layer list
+    # Build Sequential layer list — auto-insert Flatten if needed
+    SPATIAL_TYPES = {"conv2d", "maxpool2d", "conv1d", "maxpool1d"}
+    DENSE_TYPES = {"dense", "output"}
     layer_elements = []
+    prev_type = None
+
     for layer in sorted_layers:
         ltype = layer.get("type", "")
         params = layer.get("params", {})
+
+        # Auto-insert Flatten when going from spatial → dense/output
+        if prev_type in SPATIAL_TYPES and ltype in DENSE_TYPES:
+            flatten_call = ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(id="layers", ctx=ast.Load()),
+                    attr="Flatten",
+                    ctx=ast.Load(),
+                ),
+                args=[],
+                keywords=[],
+            )
+            layer_elements.append(flatten_call)
+
         call_node = _build_layer_call(ltype, params)
         if call_node is not None:
             layer_elements.append(call_node)
+            prev_type = ltype
 
     # model = keras.Sequential([...])
     model_assign = ast.Assign(
@@ -269,7 +302,37 @@ def compile_graph_to_model(
     )
     module_body.append(model_assign)
 
-    # model.compile(...)
+    # Build optimizer with learning rate:
+    # optimizer_obj = keras.optimizers.Adam(learning_rate=0.001)
+    optimizer_map = {
+        "adam": "Adam",
+        "sgd": "SGD",
+        "rmsprop": "RMSprop",
+        "adamw": "AdamW",
+    }
+    opt_class = optimizer_map.get(optimizer.lower(), "Adam")
+    opt_assign = ast.Assign(
+        targets=[ast.Name(id="optimizer_obj", ctx=ast.Store())],
+        value=ast.Call(
+            func=ast.Attribute(
+                value=ast.Attribute(
+                    value=ast.Name(id="keras", ctx=ast.Load()),
+                    attr="optimizers",
+                    ctx=ast.Load(),
+                ),
+                attr=opt_class,
+                ctx=ast.Load(),
+            ),
+            args=[],
+            keywords=[
+                ast.keyword(arg="learning_rate", value=ast.Constant(value=learning_rate)),
+            ],
+        ),
+        lineno=0,
+    )
+    module_body.append(opt_assign)
+
+    # model.compile(optimizer=optimizer_obj, loss=..., metrics=[...])
     compile_call = ast.Expr(
         value=ast.Call(
             func=ast.Attribute(
@@ -279,8 +342,8 @@ def compile_graph_to_model(
             ),
             args=[],
             keywords=[
-                ast.keyword(arg="optimizer", value=ast.Constant(value="adam")),
-                ast.keyword(arg="loss", value=ast.Constant(value="categorical_crossentropy")),
+                ast.keyword(arg="optimizer", value=ast.Name(id="optimizer_obj", ctx=ast.Load())),
+                ast.keyword(arg="loss", value=ast.Constant(value=loss)),
                 ast.keyword(
                     arg="metrics",
                     value=ast.List(
@@ -307,27 +370,121 @@ def compile_graph_to_model(
     )
     module_body.append(summary_call)
 
-    # Create module and fix missing line numbers
     module = ast.Module(body=module_body, type_ignores=[])
     ast.fix_missing_locations(module)
+    return module
 
-    # Unparse AST back to source code
+
+def compile_graph_to_code(
+    layers_data: List[Dict[str, Any]],
+    connections: List[Dict[str, Any]],
+    optimizer: str = "adam",
+    loss: str = "categorical_crossentropy",
+    learning_rate: float = 0.001,
+) -> str:
+    """
+    Convert a JSON graph definition to Keras Python source code using AST.
+    Returns the generated Python source code string (for display in UI).
+    """
+    sorted_layers = topological_sort(layers_data, connections)
+    module = _build_ast_module(sorted_layers, optimizer, loss, learning_rate)
     source_code = ast.unparse(module)
 
-    # Format nicely
-    source_code = _format_code(source_code)
-
-    return source_code
-
-
-def _format_code(code: str) -> str:
-    """Add some basic formatting to the unparsed code."""
-    lines = code.split("\n")
+    # Pretty-format: add newlines after imports, between sections
+    lines = source_code.split("\n")
     formatted = []
-    for line in lines:
+    for i, line in enumerate(lines):
         formatted.append(line)
-        # Add blank line after imports
-        if line.startswith("from ") or line.startswith("import "):
-            if formatted and not formatted[-1] == "":
-                pass  # ast.unparse handles this
+        # Add blank line after last import
+        if (line.startswith("from ") or line.startswith("import ")) and \
+           i + 1 < len(lines) and not lines[i + 1].startswith(("from ", "import ")):
+            formatted.append("")
+
     return "\n".join(formatted)
+
+
+# Keep old name as alias for backward compat
+compile_graph_to_model = compile_graph_to_code
+
+
+def compile_and_build_model(
+    layers_data: List[Dict[str, Any]],
+    connections: List[Dict[str, Any]],
+    optimizer: str = "adam",
+    loss: str = "categorical_crossentropy",
+    learning_rate: float = 0.001,
+) -> Tuple[Any, str]:
+    """
+    Compile the graph → AST → exec() → return a LIVE tf.keras model.
+
+    Returns:
+        (model, source_code) — the actual Keras model object and the source code string.
+
+    This is the core function that makes LayerLab real:
+    1. Topological sort the graph
+    2. Build Python AST for a keras.Sequential model
+    3. compile() the AST into bytecode
+    4. exec() the bytecode to produce a live model in memory
+    5. Return both the model and source code
+    """
+    sorted_layers = topological_sort(layers_data, connections)
+    module_ast = _build_ast_module(sorted_layers, optimizer, loss, learning_rate)
+
+    # Get source code for display
+    source_code = ast.unparse(module_ast)
+
+    # Compile AST to bytecode
+    code_obj = compile(module_ast, filename="<layerlab-model>", mode="exec")
+
+    # Execute in isolated namespace
+    # Capture model.summary() output
+    old_stdout = sys.stdout
+    summary_buffer = io.StringIO()
+    sys.stdout = summary_buffer
+
+    namespace = {}
+    try:
+        exec(code_obj, namespace)
+    finally:
+        sys.stdout = old_stdout
+
+    model = namespace.get("model")
+    if model is None:
+        raise RuntimeError("AST execution did not produce a 'model' variable")
+
+    summary_text = summary_buffer.getvalue()
+
+    # Pretty format the source
+    lines = source_code.split("\n")
+    formatted = []
+    for i, line in enumerate(lines):
+        formatted.append(line)
+        if (line.startswith("from ") or line.startswith("import ")) and \
+           i + 1 < len(lines) and not lines[i + 1].startswith(("from ", "import ")):
+            formatted.append("")
+
+    return model, "\n".join(formatted), summary_text
+
+
+def get_model_input_shape(model) -> tuple:
+    """Extract the input shape from a compiled Keras model."""
+    try:
+        # model.input_shape returns something like (None, 28, 28, 1)
+        shape = model.input_shape
+        if isinstance(shape, list):
+            shape = shape[0]
+        # Remove batch dimension
+        return shape[1:]
+    except Exception:
+        return (28, 28, 1)
+
+
+def get_model_output_shape(model) -> tuple:
+    """Extract the output shape from a compiled Keras model."""
+    try:
+        shape = model.output_shape
+        if isinstance(shape, list):
+            shape = shape[0]
+        return shape[1:]
+    except Exception:
+        return (10,)

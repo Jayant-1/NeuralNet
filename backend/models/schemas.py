@@ -30,12 +30,15 @@ class ProjectCreate(BaseModel):
     description: Optional[str] = ""
     template: Optional[str] = "custom"
     graph_data: Optional[Dict[str, Any]] = {"nodes": [], "edges": []}
-
+    preprocessing_config: Optional[Dict[str, Any]] = {}
+    problem_type: Optional[str] = "classification"  # classification|regression|nlp|custom
+    input_type: Optional[str] = "tabular"           # image|tabular|text
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     graph_data: Optional[Dict[str, Any]] = None
+    preprocessing_config: Optional[Dict[str, Any]] = None
 
 
 class ProjectResponse(BaseModel):
@@ -44,6 +47,9 @@ class ProjectResponse(BaseModel):
     description: Optional[str]
     template: Optional[str]
     graph_data: Optional[Dict[str, Any]]
+    preprocessing_config: Optional[Dict[str, Any]] = {}
+    problem_type: Optional[str] = "classification"
+    input_type: Optional[str] = "tabular"
     created_at: Optional[str]
     updated_at: Optional[str]
 
@@ -73,12 +79,15 @@ class TrainingJobResponse(BaseModel):
     status: str
     metrics: List[EpochMetric] = []
     error_message: Optional[str] = None
+    compiled_code: Optional[str] = None
+    model_id: Optional[str] = None
 
 
 # ======================== Deployment ========================
 class DeployRequest(BaseModel):
     project_id: str
-    training_job_id: Optional[str] = None
+    model_id: Optional[str] = None         # The trained model_id from training job
+    training_job_id: Optional[str] = None  # Legacy fallback
 
 
 class DeployResponse(BaseModel):

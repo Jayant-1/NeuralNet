@@ -157,6 +157,17 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
     token = authorization.replace("Bearer ", "")
     try:
         payload = _decode_jwt(token)
-        return payload["sub"]
+        user_id = payload["sub"]
+
+        # Guard against stale JWTs that reference users removed from the local DB.
+        conn = get_db()
+        try:
+            row = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+            if not row:
+                raise HTTPException(status_code=401, detail="User not found. Please sign in again.")
+        finally:
+            conn.close()
+
+        return user_id
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))

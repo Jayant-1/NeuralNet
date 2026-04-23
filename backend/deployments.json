@@ -1,0 +1,24 @@
+{
+  "d19f9b5a": {
+    "id": "ac0dca1a-2040-4ee0-a3a0-ff057b345ffb",
+    "user_id": "37a0106e-c979-483b-8f8c-c7437f359631",
+    "model_id": "d19f9b5a",
+    "project_id": "6e94fa70-dd61-4115-b9f7-75789006c0ca",
+    "api_key": "ll_84f23a3098a22c7c673ac74a61c41cdf",
+    "endpoint_url": "/api/predict/d19f9b5a",
+    "is_active": true,
+    "request_count": 0,
+    "created_at": "2026-04-22T22:51:48.743115+00:00"
+  },
+  "99f66187": {
+    "id": "b9525285-f696-4401-9e0f-3aaf0ab2067c",
+    "user_id": "18f1a912-b56b-49f8-a26e-d30d27676b55",
+    "model_id": "99f66187",
+    "project_id": "6cdb7d32-d501-4a1b-8958-7d7c49cf6b0f",
+    "api_key": "ll_c209f9117f69e4fd998106aee3c4e3fb",
+    "endpoint_url": "/api/predict/99f66187",
+    "is_active": true,
+    "request_count": 0,
+    "created_at": "2026-04-23T02:35:37.323893+00:00"
+  }
+}

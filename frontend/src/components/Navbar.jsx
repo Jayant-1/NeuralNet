@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { Hexagon, Menu, X } from 'lucide-react';
+import { Menu, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import BrandLogo from "./BrandLogo";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -8,15 +10,15 @@ export default function Navbar() {
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
-    window.addEventListener('scroll', handler, { passive: true });
-    return () => window.removeEventListener('scroll', handler);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
   }, []);
 
   const links = [
-    { label: 'Builder', href: '#workspace' },
-    { label: 'Datasets', href: '#datasets' },
-    { label: 'Training', href: '#training' },
-    { label: 'Deploy', href: '#deploy' },
+    { label: "Builder", href: "#workspace" },
+    { label: "Datasets", href: "#datasets" },
+    { label: "Training", href: "#training" },
+    { label: "Deploy", href: "#deploy" },
   ];
 
   return (
@@ -24,27 +26,20 @@ export default function Navbar() {
       ref={navRef}
       className={`fixed top-0 left-0 w-full z-[9000] transition-all duration-500 ${
         scrolled
-          ? 'glass-panel border-b border-white/5 py-3'
-          : 'bg-transparent py-5'
+          ? "glass-panel border-b border-white/5 py-3"
+          : "bg-transparent py-5"
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         {/* Logo */}
-        <a href="#" className="flex items-center gap-2 group" data-hover>
-          <div className="relative">
-            <Hexagon
-              size={32}
-              className="text-cyan transition-all duration-300 group-hover:rotate-90"
-              strokeWidth={1.5}
-            />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-cyan" />
-            </div>
-          </div>
-          <span className="font-heading font-bold text-lg tracking-tight text-white">
-            Neural<span className="text-cyan">Net</span>
-          </span>
-        </a>
+        <Link to="/" data-hover>
+          <BrandLogo
+            textSize="text-lg"
+            
+            
+            withHoverSpin
+          />
+        </Link>
 
         {/* Desktop links */}
         <div className="hidden md:flex items-center gap-8">
@@ -58,13 +53,13 @@ export default function Navbar() {
               {l.label}
             </a>
           ))}
-          <a
-            href="#deploy"
+          <Link
+            to="/dashboard"
             data-hover="launch"
             className="ml-4 px-5 py-2 rounded-full border border-acid/30 text-acid font-mono text-sm hover:bg-acid/10 transition-all duration-300"
           >
-            Launch Studio
-          </a>
+            Open Dashboard
+          </Link>
         </div>
 
         {/* Mobile toggle */}
@@ -91,14 +86,14 @@ export default function Navbar() {
               {l.label}
             </a>
           ))}
-          <a
-            href="#deploy"
+          <Link
+            to="/dashboard"
             data-hover="launch"
             onClick={() => setOpen(false)}
             className="mt-2 px-5 py-2 rounded-full border border-acid/30 text-acid font-mono text-sm text-center hover:bg-acid/10 transition-all"
           >
-            Launch Studio
-          </a>
+            Open Dashboard
+          </Link>
         </div>
       )}
     </nav>

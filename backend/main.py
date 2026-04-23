@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 import database  # noqa: F401 — auto-initializes DB on import
 import config    # noqa: F401 — ensures MODEL_STORAGE_PATH is created
 
-from routes import auth, projects, training, deployment, predict, datasets
+from routes import auth, projects, training, deployment, predict, datasets, compile
 
 
 @asynccontextmanager
@@ -42,6 +42,7 @@ app.include_router(training.router, prefix="/api", tags=["Training"])
 app.include_router(deployment.router, prefix="/api", tags=["Deployment"])
 app.include_router(predict.router, prefix="/api", tags=["Prediction"])
 app.include_router(datasets.router, prefix="/api", tags=["Datasets"])
+app.include_router(compile.router, prefix="/api", tags=["Compile"])
 
 
 @app.get("/api/health")
