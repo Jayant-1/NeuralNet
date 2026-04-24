@@ -98,9 +98,9 @@ a, button, input, textarea, select {
 /* ── Glass Panel ── */
 .glass-panel {
   background: rgba(18, 18, 26, 0.6);
+  border: 1px solid var(--c-border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* ── Breathing Animation ── */

@@ -1,23 +1,44 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import gsap from 'gsap';
-import { Database, Cpu, BarChart3, GripVertical } from 'lucide-react';
+import gsap from "gsap";
+import { BarChart3, Cpu, Database, GripVertical } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /* ── Node config ── */
 const NODE_DEFS = [
-  { id: 'input', label: 'Data Input', icon: Database, color: '#00F2FF', defaultX: 0.15, defaultY: 0.45 },
-  { id: 'process', label: 'Transform', icon: Cpu, color: '#8A2BE2', defaultX: 0.5, defaultY: 0.42 },
-  { id: 'output', label: 'Predict', icon: BarChart3, color: '#00FF41', defaultX: 0.82, defaultY: 0.48 },
+  {
+    id: "input",
+    label: "Data Input",
+    icon: Database,
+    color: "#00F2FF",
+    defaultX: 0.15,
+    defaultY: 0.45,
+  },
+  {
+    id: "process",
+    label: "Transform",
+    icon: Cpu,
+    color: "#8A2BE2",
+    defaultX: 0.5,
+    defaultY: 0.42,
+  },
+  {
+    id: "output",
+    label: "Predict",
+    icon: BarChart3,
+    color: "#00FF41",
+    defaultX: 0.82,
+    defaultY: 0.48,
+  },
 ];
 
-const SNAP_DIST = 180;
-const UNSNAP_DIST = 260;
+const SNAP_DIST = 320;
+const UNSNAP_DIST = 500;
 
 /* ── Weave Canvas (background threads) ── */
 function WeaveCanvas({ canvasRef }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     let raf;
     let threads = [];
 
@@ -26,14 +47,15 @@ function WeaveCanvas({ canvasRef }) {
       canvas.height = window.innerHeight;
     };
     resize();
-    window.addEventListener('resize', resize);
+    window.addEventListener("resize", resize);
 
     class Thread {
       constructor() {
         this.reset();
       }
       reset() {
-        const w = canvas.width, h = canvas.height;
+        const w = canvas.width,
+          h = canvas.height;
         this.x = Math.random() * w;
         this.y = Math.random() * h;
         this.vx = (Math.random() - 0.5) * 0.6;
@@ -53,7 +75,12 @@ function WeaveCanvas({ canvasRef }) {
         this.y += this.vy;
         this.angle += this.angVel;
         this.phase += this.freq;
-        if (this.x < -200 || this.x > canvas.width + 200 || this.y < -200 || this.y > canvas.height + 200) {
+        if (
+          this.x < -200 ||
+          this.x > canvas.width + 200 ||
+          this.y < -200 ||
+          this.y > canvas.height + 200
+        ) {
           this.reset();
         }
       }
@@ -66,7 +93,11 @@ function WeaveCanvas({ canvasRef }) {
         for (let i = 0; i <= steps; i++) {
           const pct = i / steps;
           const lx = (pct - 0.5) * this.length;
-          const ly = Math.sin(pct * Math.PI * 3 + this.phase) * this.amp * pct * (1 - pct);
+          const ly =
+            Math.sin(pct * Math.PI * 3 + this.phase) *
+            this.amp *
+            pct *
+            (1 - pct);
           if (i === 0) ctx.moveTo(lx, ly);
           else ctx.lineTo(lx, ly);
         }
@@ -93,7 +124,7 @@ function WeaveCanvas({ canvasRef }) {
 
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener("resize", resize);
     };
   }, [canvasRef]);
 
@@ -170,34 +201,43 @@ function DraggableNode({ def, pos, onDrag, onDragEnd, containerRef }) {
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
 
-  const handlePointerDown = useCallback((e) => {
-    e.preventDefault();
-    dragging.current = true;
-    const rect = containerRef.current.getBoundingClientRect();
-    offset.current = {
-      x: e.clientX - (rect.left + pos.x),
-      y: e.clientY - (rect.top + pos.y),
-    };
-    nodeRef.current?.setPointerCapture(e.pointerId);
-    nodeRef.current?.classList.add('scale-105');
-  }, [pos, containerRef]);
+  const handlePointerDown = useCallback(
+    (e) => {
+      e.preventDefault();
+      dragging.current = true;
+      const rect = containerRef.current.getBoundingClientRect();
+      offset.current = {
+        x: e.clientX - (rect.left + pos.x),
+        y: e.clientY - (rect.top + pos.y),
+      };
+      nodeRef.current?.setPointerCapture(e.pointerId);
+      nodeRef.current?.classList.add("scale-105");
+    },
+    [pos, containerRef],
+  );
 
-  const handlePointerMove = useCallback((e) => {
-    if (!dragging.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left - offset.current.x;
-    const y = e.clientY - rect.top - offset.current.y;
-    const cx = Math.max(40, Math.min(rect.width - 40, x));
-    const cy = Math.max(40, Math.min(rect.height - 40, y));
-    onDrag(def.id, cx, cy);
-  }, [def.id, onDrag, containerRef]);
+  const handlePointerMove = useCallback(
+    (e) => {
+      if (!dragging.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left - offset.current.x;
+      const y = e.clientY - rect.top - offset.current.y;
+      const cx = Math.max(40, Math.min(rect.width - 40, x));
+      const cy = Math.max(40, Math.min(rect.height - 40, y));
+      onDrag(def.id, cx, cy);
+    },
+    [def.id, onDrag, containerRef],
+  );
 
-  const handlePointerUp = useCallback((e) => {
-    dragging.current = false;
-    nodeRef.current?.releasePointerCapture(e.pointerId);
-    nodeRef.current?.classList.remove('scale-105');
-    onDragEnd(def.id);
-  }, [def.id, onDragEnd]);
+  const handlePointerUp = useCallback(
+    (e) => {
+      dragging.current = false;
+      nodeRef.current?.releasePointerCapture(e.pointerId);
+      nodeRef.current?.classList.remove("scale-105");
+      onDragEnd(def.id);
+    },
+    [def.id, onDragEnd],
+  );
 
   const Icon = def.icon;
 
@@ -219,7 +259,7 @@ function DraggableNode({ def, pos, onDrag, onDragEnd, containerRef }) {
         className="glass-panel rounded-2xl px-5 py-3 flex items-center gap-3 group transition-all duration-300 hover:scale-105"
         style={{
           borderColor: `${def.color}33`,
-          borderWidth: '2px',
+          borderWidth: "2px",
           boxShadow: `0 0 24px ${def.color}20, 0 0 60px ${def.color}08`,
         }}
       >
@@ -230,7 +270,10 @@ function DraggableNode({ def, pos, onDrag, onDragEnd, containerRef }) {
           <Icon size={18} style={{ color: def.color }} />
         </div>
         <div>
-          <div className="text-xs font-mono text-text-dim uppercase tracking-widest" style={{ fontSize: '9px' }}>
+          <div
+            className="text-xs font-mono text-text-dim uppercase tracking-widest"
+            style={{ fontSize: "9px" }}
+          >
             {def.id}
           </div>
           <div className="text-sm font-heading font-semibold text-white whitespace-nowrap">
@@ -261,13 +304,18 @@ export default function HeroSection() {
     if (initialized.current) return;
     const rect = playgroundRef.current?.getBoundingClientRect();
     if (!rect || rect.width === 0) {
-      const timer = setTimeout(() => { initialized.current = false; }, 100);
+      const timer = setTimeout(() => {
+        initialized.current = false;
+      }, 100);
       return () => clearTimeout(timer);
     }
     initialized.current = true;
     const initial = {};
     NODE_DEFS.forEach((d) => {
-      initial[d.id] = { x: d.defaultX * rect.width, y: d.defaultY * rect.height };
+      initial[d.id] = {
+        x: d.defaultX * rect.width,
+        y: d.defaultY * rect.height,
+      };
     });
     setNodes(initial);
   }, []);
@@ -289,7 +337,8 @@ export default function HeroSection() {
           const b = positions[ids[j]];
           const dist = Math.hypot(a.x - b.x, a.y - b.y);
           if (dist < SNAP_DIST) {
-            const colorA = NODE_DEFS.find((d) => d.id === ids[i])?.color || '#fff';
+            const colorA =
+              NODE_DEFS.find((d) => d.id === ids[i])?.color || "#fff";
             newConns.push({ from: ids[i], to: ids[j], color: colorA });
           }
         }
@@ -311,7 +360,8 @@ export default function HeroSection() {
         if (!a || !b) continue;
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
         if (dist < SNAP_DIST) {
-          const colorA = NODE_DEFS.find((d) => d.id === ids[i])?.color || '#fff';
+          const colorA =
+            NODE_DEFS.find((d) => d.id === ids[i])?.color || "#fff";
           newConns.push({ from: ids[i], to: ids[j], color: colorA });
         }
       }
@@ -327,21 +377,21 @@ export default function HeroSection() {
         opacity: 0,
         duration: 1.2,
         stagger: 0.15,
-        ease: 'power3.out',
+        ease: "power3.out",
         delay: 0.3,
       });
       gsap.from(subRef.current, {
         y: 30,
         opacity: 0,
         duration: 1,
-        ease: 'power3.out',
+        ease: "power3.out",
         delay: 0.8,
       });
       gsap.from(ctaRef.current, {
         y: 20,
         opacity: 0,
         duration: 0.8,
-        ease: 'power3.out',
+        ease: "power3.out",
         delay: 1.1,
       });
     }, sectionRef);
@@ -364,16 +414,29 @@ export default function HeroSection() {
       <WeaveCanvas canvasRef={canvasRef} />
 
       {/* Radial gradient accents */}
-      <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full opacity-[0.04] pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #00F2FF, transparent 70%)' }} />
-      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full opacity-[0.03] pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #8A2BE2, transparent 70%)' }} />
+      <div
+        className="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full opacity-[0.04] pointer-events-none"
+        style={{
+          background: "radial-gradient(circle, #00F2FF, transparent 70%)",
+        }}
+      />
+      <div
+        className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full opacity-[0.03] pointer-events-none"
+        style={{
+          background: "radial-gradient(circle, #8A2BE2, transparent 70%)",
+        }}
+      />
 
       {/* Headline */}
-      <div className="relative z-10 text-center mb-8 mt-12 px-4" ref={headlineRef}>
+      <div
+        className="relative z-10 text-center mb-8 mt-12 px-4"
+        ref={headlineRef}
+      >
         <h1 className="font-heading font-bold text-5xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-[0.95]">
           <span className="block text-white">Stop Coding.</span>
-          <span className="block gradient-text mt-2">Start Weaving Intelligence.</span>
+          <span className="block gradient-text mt-2">
+            Start Weaving Intelligence.
+          </span>
         </h1>
       </div>
 
@@ -407,9 +470,9 @@ export default function HeroSection() {
       <div
         ref={playgroundRef}
         className="relative z-10 w-full max-w-5xl mx-auto"
-        style={{ height: '260px' }}
+        style={{ height: "260px" }}
       >
-        {/* SVG Connection Layer */}
+        {/* SVG Connection Neural */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none"
           style={{ zIndex: 15 }}

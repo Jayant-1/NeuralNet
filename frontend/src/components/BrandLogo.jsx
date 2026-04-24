@@ -3,6 +3,8 @@ import React from "react";
 
 const BrandLogo = ({
   textSize = "text-lg",
+  iconSize = 32,
+  dotSize = "w-2 h-2",
   withHoverSpin = false,
   className = "",
   onClick,
@@ -11,24 +13,23 @@ const BrandLogo = ({
 
   return (
     <div
-      className={`flex items-center gap-[0.5em] origin-left ${textSize} ${groupClass} ${className} cursor-pointer transition-all duration-300 hover:opacity-90`}
+      className={`flex items-center gap-2 origin-left scale-[1.06] ${onClick ? "cursor-pointer transition-transform duration-200 hover:scale-110" : ""} ${groupClass} ${className}`}
       onClick={onClick}
     >
       <div className="relative">
         <Hexagon
-          size="1.8em"
-          className={`text-cyan ${withHoverSpin ? "transition-transform duration-500 ease-in-out group-hover:rotate-180" : ""}`}
+          size={iconSize}
+          className={`text-cyan ${withHoverSpin ? "transition-all duration-300 group-hover:rotate-90" : ""}`}
           strokeWidth={1.5}
         />
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-[0.35em] h-[0.35em] rounded-full bg-cyan shadow-[0_0_8px_rgba(0,242,255,0.8)]" />
+          <div className={`${dotSize} rounded-full bg-cyan`} />
         </div>
       </div>
-
       <span
-        className="font-heading font-bold tracking-tight text-white text-[1.5em]"
+        className={`font-heading font-bold tracking-tight text-white text-[1.35em] ${textSize}`}
       >
-        Layer<span className="text-cyan">Lab</span>
+        Neural<span className="text-cyan">Net</span>
       </span>
     </div>
   );

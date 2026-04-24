@@ -28,7 +28,7 @@ export default function Footer() {
         </div>
 
         <p className="font-mono text-xs text-text-dim">
-          © 2026 LayerNet. All rights reserved.
+          © 2026 NeuralNet. All rights reserved.
         </p>
       </div>
     </footer>
