@@ -1,7 +1,20 @@
 import axios from "axios";
 
+const rawBaseURL = import.meta.env.VITE_API_BASE_URL || "/api";
+
+function normalizeBaseURL(url) {
+  const trimmed = url.replace(/\/$/, "");
+
+  // For absolute URLs, ensure requests target FastAPI routes mounted at /api.
+  if (/^https?:\/\//i.test(trimmed) && !trimmed.endsWith("/api")) {
+    return `${trimmed}/api`;
+  }
+
+  return trimmed;
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
+  baseURL: normalizeBaseURL(rawBaseURL),
   headers: { "Content-Type": "application/json" },
 });
 
