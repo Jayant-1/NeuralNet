@@ -67,27 +67,6 @@ Backend
 
 ## Quick Start
 
-Option A: Start both services using the helper script
-
-1. Create and activate a Python virtual environment inside backend.
-2. Install backend dependencies.
-3. Install frontend dependencies.
-4. Run start.sh from the repository root.
-
-Example:
-
-    cd backend
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    cd ../frontend
-    npm install
-    cd ..
-    chmod +x start.sh
-    ./start.sh
-
-Option B: Run services separately
-
 Backend:
 
     cd backend
