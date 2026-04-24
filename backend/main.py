@@ -29,7 +29,7 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://neural-net-blond.vercel.app/","neural-net-blond.vercel.app","neuralnet.jayantpotdar.in","https://neuralnet.jayantpotdar.in/"],
+    allow_origins=["https://neural-net-blond.vercel.app", "neural-net-blond.vercel.app", "neuralnet.jayantpotdar.in", "https://neuralnet.jayantpotdar.in", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
