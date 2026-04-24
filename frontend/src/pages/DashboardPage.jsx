@@ -119,11 +119,7 @@ const DashboardPage = () => {
               onClick={() => navigate("/")}
               title="Home"
             >
-              <BrandLogo
-                textSize="text-xl"
-                
-                
-              />
+              <BrandLogo textSize="text-xl" />
             </div>
           </div>
 
@@ -265,8 +261,8 @@ const DashboardPage = () => {
                     <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between text-xs text-dim group-hover:text-cyan transition-colors font-mono">
                       <span>Open workspace</span>
                       <ChevronRight
-                         size={14}
-                         className="group-hover:translate-x-1 transition-transform"
+                        size={14}
+                        className="group-hover:translate-x-1 transition-transform"
                       />
                     </div>
                   </div>
@@ -283,7 +279,7 @@ const DashboardPage = () => {
               </h3>
               <p className="text-dim text-sm mb-8 max-w-md">
                 Create your first neural network project to get started with
-                LayerLab.
+                NeuralNet.
               </p>
               <button
                 className="px-6 py-3 rounded-xl bg-cyan/10 text-cyan border border-cyan/30 hover:bg-cyan/20 hover:shadow-[0_0_20px_rgba(0,242,255,0.2)] transition-all font-mono text-sm flex items-center gap-2"
@@ -307,22 +303,27 @@ const DashboardPage = () => {
 
       {projectToDelete && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-fade-in-up">
-          <div className="glass-panel w-full max-w-md rounded-3xl border border-white/10 shadow-2xl p-6 relative overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div
+            className="glass-panel w-full max-w-md rounded-3xl border border-white/10 shadow-2xl p-6 relative overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="absolute top-0 left-0 w-full h-1 bg-red-500/50"></div>
             <h3 className="text-xl font-bold font-heading text-white mb-2 flex items-center gap-2">
               <Trash2 className="text-red-400" size={20} /> Delete Project
             </h3>
             <p className="text-dim text-sm mb-6">
-              Are you sure you want to delete <strong className="text-white">"{projectToDelete.name}"</strong>? This action cannot be undone.
+              Are you sure you want to delete{" "}
+              <strong className="text-white">"{projectToDelete.name}"</strong>?
+              This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
-              <button 
+              <button
                 className="px-4 py-2 rounded-xl text-dim hover:text-white hover:bg-white/5 transition-colors font-mono text-sm"
                 onClick={() => setProjectToDelete(null)}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="px-4 py-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors font-mono text-sm font-bold"
                 onClick={confirmDeleteProject}
               >

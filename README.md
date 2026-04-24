@@ -1,16 +1,179 @@
-# React + Vite
+# NeuralNet
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+NeuralNet is a full-stack visual deep learning studio for building, training, and serving neural networks from a drag-and-drop graph interface.
 
-Currently, two official plugins are available:
+It includes:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- A React + Vite frontend with a node-based model builder
+- A FastAPI backend that compiles graph JSON into executable Keras code
+- Real TensorFlow model training with live metrics
+- One-click deployment and API key-based inference endpoints
 
-## React Compiler
+## Core Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Visual model builder with layer nodes and connections
+- Graph-to-code compilation (AST-based) to TensorFlow/Keras
+- Real training pipeline with per-epoch and per-batch metrics
+- Built-in dataset loader (MNIST, Fashion-MNIST, CIFAR-10, CIFAR-100)
+- Dataset upload support for project-specific files
+- Project persistence (graph + preprocessing config)
+- Model deployment with generated API keys
+- Prediction playground for deployed endpoints
+- Authenticated multi-project workflow (signup/login/JWT)
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Frontend
+
+- React 18
+- Vite
+- Zustand
+- Axios
+- React Router
+- Tailwind CSS
+- XYFlow (React Flow)
+- Monaco Editor
+- Recharts
+
+Backend
+
+- FastAPI
+- SQLite (local database)
+- TensorFlow / Keras
+- NumPy
+- Pydantic
+
+## Repository Structure
+
+- frontend: React application (UI, builder, pages, API client, state)
+- backend: FastAPI services and routes
+- database: SQL schema artifacts (legacy Supabase schema kept for reference)
+- start.sh: helper script to run frontend and backend together
+
+## Architecture Overview
+
+1. User creates a project and designs a neural network in the visual builder.
+2. Frontend sends graph data to backend compile/training endpoints.
+3. Backend compiles graph layers and connections into executable Keras code.
+4. Training runs in background and streams metrics via polling.
+5. Trained model is saved as a .keras file in backend/model_storage.
+6. Deployment generates endpoint metadata + API key.
+7. Inference requests are served through /api/predict/{model_id}.
+
+## Prerequisites
+
+- Python 3.10+ recommended
+- Node.js 18+ and npm
+
+## Quick Start
+
+Option A: Start both services using the helper script
+
+1. Create and activate a Python virtual environment inside backend.
+2. Install backend dependencies.
+3. Install frontend dependencies.
+4. Run start.sh from the repository root.
+
+Example:
+
+    cd backend
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    cd ../frontend
+    npm install
+    cd ..
+    chmod +x start.sh
+    ./start.sh
+
+Option B: Run services separately
+
+Backend:
+
+    cd backend
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    uvicorn main:app --reload --port 8000
+
+Frontend:
+
+    cd frontend
+    npm install
+    npm run dev
+
+Default URLs:
+
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+## Environment Variables
+
+Backend reads environment variables from backend/.env if present.
+
+Supported settings:
+
+- JWT_SECRET: JWT signing secret
+- MODEL_STORAGE_PATH: directory for saved .keras models
+
+If not provided, safe local defaults are used.
+
+## Main API Endpoints
+
+Auth
+
+- POST /api/auth/signup
+- POST /api/auth/login
+
+Projects
+
+- POST /api/projects
+- GET /api/projects
+- GET /api/projects/{project_id}
+- PUT /api/projects/{project_id}
+- DELETE /api/projects/{project_id}
+
+Datasets
+
+- GET /api/datasets/builtin
+- POST /api/datasets/builtin/load
+- POST /api/datasets/{project_id}/upload
+- GET /api/datasets/{project_id}
+- GET /api/datasets/{project_id}/active
+- DELETE /api/datasets/{dataset_id}
+
+Training and Compilation
+
+- POST /api/compile
+- POST /api/train
+- GET /api/metrics/{job_id}
+- GET /api/training/jobs/{project_id}
+
+Deployment and Prediction
+
+- POST /api/deploy
+- GET /api/deployments
+- POST /api/predict/{model_id} (requires X-API-Key header)
+
+Health
+
+- GET /api/health
+
+## Data and Model Persistence
+
+- SQLite database is stored at backend/layerlab.db
+- Trained models are stored under backend/model_storage
+- Deployment metadata persists in backend/deployments.json
+
+## Notes
+
+- The active runtime uses local FastAPI + SQLite + JWT auth.
+- Some files in the repository (such as database/schema.sql and oldfrontend) represent older or alternate approaches and are not part of the current runtime path.
+
+## Future Improvements
+
+- Persist training jobs/models fully in database tables for cross-restart continuity
+- Add tests for route handlers and graph compiler validation
+- Add containerized setup (Docker Compose)
+- Add role-based auth and project sharing

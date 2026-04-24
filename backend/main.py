@@ -1,5 +1,5 @@
 """
-LayerLab FastAPI Backend — Main Entry Point
+NeuralNet FastAPI Backend — Main Entry Point
 Uses SQLite database with local JWT auth.
 """
 from fastapi import FastAPI
@@ -14,14 +14,14 @@ from routes import auth, projects, training, deployment, predict, datasets, comp
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("[START] LayerLab backend starting...")
+    print("[START] NeuralNet backend starting...")
     yield
-    print("[STOP] LayerLab backend shutting down...")
+    print("[STOP] NeuralNet backend shutting down...")
 
 
 app = FastAPI(
-    title="LayerLab API",
-    description="Backend API for LayerLab neural network builder",
+    title="NeuralNet API",
+    description="Backend API for NeuralNet neural network builder",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -47,4 +47,4 @@ app.include_router(compile.router, prefix="/api", tags=["Compile"])
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "service": "LayerLab API"}
+    return {"status": "ok", "service": "NeuralNet API"}
