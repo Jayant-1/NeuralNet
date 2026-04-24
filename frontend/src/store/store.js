@@ -55,6 +55,7 @@ export const useBuilderStore = create((set, get) => ({
   nodes: [],
   edges: [],
   selectedNode: null,
+  activeTool: 'select', // 'select' | 'hand'
 
   // Undo/Redo history
   history: [],
@@ -94,6 +95,7 @@ export const useBuilderStore = create((set, get) => ({
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
   setSelectedNode: (node) => set({ selectedNode: node }),
+  setActiveTool: (tool) => set({ activeTool: tool }),
 
   addNode: (node) => {
     get()._pushHistory();
@@ -250,14 +252,35 @@ export const useDatasetStore = create((set) => ({
 }));
 
 // ================================================================
-// DEPLOYMENT STORE
+// DEPLOYMENT STORE — persists active deployment to localStorage
 // ================================================================
+const _loadStoredDeployment = () => {
+  try {
+    const raw = localStorage.getItem('ll_active_deployment');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+
 export const useDeployStore = create((set) => ({
   deployments: [],
-  activeDeployment: null,
+  activeDeployment: _loadStoredDeployment(),  // hydrate from localStorage
 
   setDeployments: (deployments) => set({ deployments }),
-  setActiveDeployment: (deployment) => set({ activeDeployment: deployment }),
+
+  setActiveDeployment: (deployment) => {
+    // Persist to localStorage so it survives page refresh
+    if (deployment) {
+      try { localStorage.setItem('ll_active_deployment', JSON.stringify(deployment)); } catch {}
+    } else {
+      localStorage.removeItem('ll_active_deployment');
+    }
+    set({ activeDeployment: deployment });
+  },
+
+  clearDeployment: () => {
+    localStorage.removeItem('ll_active_deployment');
+    set({ activeDeployment: null });
+  },
 
   addDeployment: (deployment) =>
     set((state) => ({ deployments: [deployment, ...state.deployments] })),

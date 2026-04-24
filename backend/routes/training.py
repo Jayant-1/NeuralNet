@@ -56,9 +56,12 @@ def run_training(job_id: str, config: TrainingConfig):
 
         # Step 2: Train the model with model.fit()
         def on_epoch_end(metrics):
-            """Callback to store metrics in real-time."""
+            """Callback to store epoch metrics in real-time."""
             epoch_metric = EpochMetric(**metrics)
             job["metrics"].append(epoch_metric.model_dump())
+
+        # batch_metrics list — collector appends to this directly
+        job_batch_metrics = job["batch_metrics"]
 
         training_config = {
             "epochs": config.epochs,
@@ -93,6 +96,7 @@ def run_training(job_id: str, config: TrainingConfig):
             on_epoch_end=on_epoch_end,
             dataset_info=dataset_info,
             preprocessing_config=preprocessing_config,
+            job_batch_metrics=job_batch_metrics,
         )
         job["dataset_used"] = result.get("dataset_used", "synthetic")
 
@@ -130,6 +134,7 @@ async def start_training(
         "project_id": config.project_id,
         "status": "pending",
         "metrics": [],
+        "batch_metrics": [],
         "error_message": None,
         "compiled_code": None,
         "model_summary": None,
@@ -160,6 +165,7 @@ async def get_metrics(
         job_id=job["job_id"],
         status=job["status"],
         metrics=[EpochMetric(**m) for m in job["metrics"]],
+        batch_metrics=job.get("batch_metrics", []),
         error_message=job.get("error_message"),
         compiled_code=job.get("compiled_code"),
         model_id=job.get("model_id"),

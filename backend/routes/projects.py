@@ -27,22 +27,12 @@ async def create_project(
 
     conn = get_db()
     try:
-        try:
-            conn.execute(
-                """INSERT INTO projects
-                   (id, user_id, name, description, template, graph_data,
-                    preprocessing_config, problem_type, input_type, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (project_id, user_id, project.name, project.description,
-                 project.template, graph_json, preproc_json,
-                 project.problem_type or "classification",
-                 project.input_type or "tabular",
-                 now, now),
-            )
-        except sqlite3.IntegrityError as e:
-            if "FOREIGN KEY constraint failed" in str(e):
-                raise HTTPException(status_code=401, detail="Invalid session. Please sign in again.")
-            raise
+        conn.execute(
+            """INSERT INTO projects (id, user_id, name, description, template, graph_data, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (project_id, user_id, project.name, project.description,
+             project.template, graph_json, now, now),
+        )
         conn.commit()
 
         return ProjectResponse(

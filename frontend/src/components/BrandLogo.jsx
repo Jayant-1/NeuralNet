@@ -24,11 +24,11 @@ const BrandLogo = ({
           <div className="w-[0.35em] h-[0.35em] rounded-full bg-cyan shadow-[0_0_8px_rgba(0,242,255,0.8)]" />
         </div>
       </div>
-      
+
       <span
         className="font-heading font-bold tracking-tight text-white text-[1.5em]"
       >
-        Neural<span className="text-cyan">Net</span>
+        Layer<span className="text-cyan">Lab</span>
       </span>
     </div>
   );

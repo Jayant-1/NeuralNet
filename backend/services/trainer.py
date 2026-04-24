@@ -154,14 +154,37 @@ def prepare_dataset_for_model(
 
 class MetricsCollector(tf.keras.callbacks.Callback):
     """
-    Keras callback that collects metrics per epoch
-    and optionally calls an external callback function.
+    Keras callback that collects metrics per epoch AND per batch.
     """
 
-    def __init__(self, on_epoch_end_fn: Optional[Callable] = None):
+    def __init__(
+        self,
+        on_epoch_end_fn: Optional[Callable] = None,
+        on_batch_end_fn: Optional[Callable] = None,
+    ):
         super().__init__()
         self.epoch_metrics: List[Dict[str, float]] = []
+        self.batch_metrics: List[Dict[str, float]] = []
         self.on_epoch_end_fn = on_epoch_end_fn
+        self.on_batch_end_fn = on_batch_end_fn
+        self._current_epoch = 0
+        self._total_batches = 0
+
+    def on_epoch_begin(self, epoch, logs=None):
+        self._current_epoch = epoch + 1
+
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
+        self._total_batches += 1
+        batch_data = {
+            "batch": self._total_batches,       # global batch number
+            "epoch": self._current_epoch,
+            "loss": round(float(logs.get("loss", 0)), 4),
+            "acc":  round(float(logs.get("accuracy", 0)), 4),
+        }
+        self.batch_metrics.append(batch_data)
+        if self.on_batch_end_fn:
+            self.on_batch_end_fn(batch_data)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -173,7 +196,6 @@ class MetricsCollector(tf.keras.callbacks.Callback):
             "val_acc": round(float(logs.get("val_accuracy", 0)), 4),
         }
         self.epoch_metrics.append(metrics)
-
         if self.on_epoch_end_fn:
             self.on_epoch_end_fn(metrics)
 
@@ -184,6 +206,7 @@ def train_model(
     on_epoch_end: Optional[Callable[[Dict[str, float]], None]] = None,
     dataset_info: Optional[Dict[str, Any]] = None,
     preprocessing_config: Optional[Dict[str, Any]] = None,
+    job_batch_metrics: Optional[List] = None,
 ) -> Dict[str, Any]:
     """
     Train a REAL Keras model with model.fit().
@@ -217,7 +240,10 @@ def train_model(
             x_train, x_test, y_train, y_test = apply_preprocessing_config(
                 x_train, x_test, y_train, y_test, preprocessing_config
             )
-        collector = MetricsCollector(on_epoch_end_fn=on_epoch_end)
+        collector = MetricsCollector(
+            on_epoch_end_fn=on_epoch_end,
+            on_batch_end_fn=lambda b: job_batch_metrics.append(b) if job_batch_metrics is not None else None,
+        )
 
         # Run REAL training with real data and a real validation set
         history = model.fit(
@@ -239,7 +265,10 @@ def train_model(
             input_shape, output_shape, num_samples, loss_fn
         )
 
-        collector = MetricsCollector(on_epoch_end_fn=on_epoch_end)
+        collector = MetricsCollector(
+            on_epoch_end_fn=on_epoch_end,
+            on_batch_end_fn=lambda b: job_batch_metrics.append(b) if job_batch_metrics is not None else None,
+        )
 
         history = model.fit(
             x_data, y_data,
@@ -255,6 +284,7 @@ def train_model(
         "dataset_used": dataset_used,
         "final_metrics": collector.epoch_metrics[-1] if collector.epoch_metrics else {},
         "all_metrics": collector.epoch_metrics,
+        "batch_metrics": collector.batch_metrics,
     }
 
 

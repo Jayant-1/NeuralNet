@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -11,6 +11,7 @@ import {
   applyEdgeChanges,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Hand, MousePointer2 } from 'lucide-react';
 import CustomNode from './CustomNode';
 import { useBuilderStore } from '../../store/store';
 
@@ -38,6 +39,12 @@ const BuilderCanvasContent = ({ onGraphChange }) => {
   const pasteClipboard = useBuilderStore((s) => s.pasteClipboard);
   const duplicateNodes = useBuilderStore((s) => s.duplicateNodes);
   const _pushHistory = useBuilderStore((s) => s._pushHistory);
+  const activeTool = useBuilderStore((s) => s.activeTool);
+  const setActiveTool = useBuilderStore((s) => s.setActiveTool);
+
+  // Space-bar held = temporary hand mode (Figma-style)
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const isHandMode = activeTool === 'hand' || spaceHeld;
 
   const notifyChange = useCallback(
     (newNodes, newEdges) => {
@@ -145,12 +152,23 @@ const BuilderCanvasContent = ({ onGraphChange }) => {
     _pushHistory();
   }, [_pushHistory]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts + Space for temporary hand mode
   useEffect(() => {
     const handleKeyDown = (e) => {
       const target = e.target;
       // Don't capture when typing in inputs
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+      // Space = temporary hand mode
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        setSpaceHeld(true);
+        return;
+      }
+
+      // H = hand tool, V = select tool
+      if (e.key === 'h' || e.key === 'H') { setActiveTool('hand'); return; }
+      if (e.key === 'v' || e.key === 'V') { setActiveTool('select'); return; }
 
       const isMod = e.ctrlKey || e.metaKey;
 
@@ -180,12 +198,24 @@ const BuilderCanvasContent = ({ onGraphChange }) => {
       }
     };
 
+    const handleKeyUp = (e) => {
+      if (e.code === 'Space') setSpaceHeld(false);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nodes, undo, redo, copySelectedNodes, pasteClipboard, duplicateNodes]);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [nodes, undo, redo, copySelectedNodes, pasteClipboard, duplicateNodes, setActiveTool]);
 
   return (
-    <div className="w-full h-full absolute inset-0" ref={reactFlowWrapper}>
+    <div
+      className="w-full h-full absolute inset-0"
+      ref={reactFlowWrapper}
+      style={{ cursor: isHandMode ? 'grab' : 'default' }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -202,9 +232,9 @@ const BuilderCanvasContent = ({ onGraphChange }) => {
         defaultEdgeOptions={defaultEdgeOptions}
         snapToGrid
         snapGrid={SNAP_GRID}
-        selectionOnDrag
-        panOnDrag={[1, 2]}
-        selectNodesOnDrag
+        selectionOnDrag={!isHandMode}
+        panOnDrag={isHandMode ? true : [1, 2]}
+        selectNodesOnDrag={!isHandMode}
         multiSelectionKeyCode="Shift"
         deleteKeyCode={['Backspace', 'Delete']}
         fitView
@@ -227,6 +257,32 @@ const BuilderCanvasContent = ({ onGraphChange }) => {
           style={{ backgroundColor: '#0B0B0F', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
         />
       </ReactFlow>
+
+      {/* Tool toggle — top-left corner of canvas */}
+      <div className="absolute top-3 left-3 z-10 flex gap-1 bg-[#1A1A28]/90 backdrop-blur border border-white/10 rounded-xl p-1 shadow-lg">
+        <button
+          title="Select (V)"
+          onClick={() => setActiveTool('select')}
+          className={`p-2 rounded-lg transition-all ${
+            activeTool === 'select'
+              ? 'bg-cyan/20 text-cyan border border-cyan/40'
+              : 'text-dim hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <MousePointer2 size={15} />
+        </button>
+        <button
+          title="Hand / Pan (H  or hold Space)"
+          onClick={() => setActiveTool(activeTool === 'hand' ? 'select' : 'hand')}
+          className={`p-2 rounded-lg transition-all ${
+            activeTool === 'hand'
+              ? 'bg-violet/20 text-violet border border-violet/40'
+              : 'text-dim hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Hand size={15} />
+        </button>
+      </div>
     </div>
   );
 };

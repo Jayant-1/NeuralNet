@@ -1,16 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTrainingStore, useDeployStore } from '../../store/store';
 import { deploymentApi } from '../../services/api';
-import { Rocket, Copy, Check, Globe, Key, Shield, Activity, Server, Loader2, Code, Terminal } from 'lucide-react';
+import { Rocket, Copy, Check, Globe, Key, Shield, Activity, Server, Loader2, Code, RefreshCw, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DeployPanel = ({ projectId }) => {
   const { status: trainingStatus, metrics, modelId } = useTrainingStore();
-  const { activeDeployment, setActiveDeployment } = useDeployStore();
+  const { activeDeployment, setActiveDeployment, clearDeployment } = useDeployStore();
   const [deploying, setDeploying] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [activeSnippet, setActiveSnippet] = useState('python');
+  const [fetchingExisting, setFetchingExisting] = useState(false);
+
+  // On mount: if no deployment in store, try fetching from the API
+  // This handles the case where the backend restarted but deployments.json persisted.
+  useEffect(() => {
+    if (activeDeployment) return; // already restored from localStorage
+    fetchExistingDeployment();
+  }, []);
+
+  const fetchExistingDeployment = async () => {
+    setFetchingExisting(true);
+    try {
+      const { data } = await deploymentApi.list();
+      if (data && data.length > 0) {
+        // Use the most recent deployment (last item)
+        const latest = data[data.length - 1];
+        setActiveDeployment({
+          ...latest,
+          accuracy: 0, // unknown after restart
+          created_at: new Date().toISOString(),
+        });
+      }
+    } catch {
+      // Silently fail — user just won't see a restored deployment
+    } finally {
+      setFetchingExisting(false);
+    }
+  };
 
   const handleDeploy = async () => {
     if (trainingStatus !== 'completed') {
@@ -38,6 +66,11 @@ const DeployPanel = ({ projectId }) => {
     } finally {
       setDeploying(false);
     }
+  };
+
+  const handleClearDeployment = () => {
+    clearDeployment();
+    toast('Deployment cleared from view. The model is still live on the server.', { icon: 'ℹ️' });
   };
 
   const copyToClipboard = (text, type) => {
@@ -97,11 +130,42 @@ console.log("Confidence:", result.confidence);`,
 
   const snippets = getCodeSnippets();
 
+  if (fetchingExisting) {
+    return (
+      <div className="max-w-4xl mx-auto w-full flex items-center justify-center py-32">
+        <div className="flex flex-col items-center gap-4 text-dim">
+          <Loader2 size={32} className="animate-spin text-cyan" />
+          <span className="font-mono text-sm">Checking for existing deployments…</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto w-full space-y-6">
-      <div className="animate-fade-in-up">
-        <h2 className="text-2xl font-heading font-bold text-white mb-2">Deploy Model</h2>
-        <p className="text-dim text-sm">Deploy your trained model as an API endpoint for predictions</p>
+      <div className="animate-fade-in-up flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-heading font-bold text-white mb-2">Deploy Model</h2>
+          <p className="text-dim text-sm">Deploy your trained model as an API endpoint for predictions</p>
+        </div>
+        {activeDeployment && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchExistingDeployment}
+              title="Refresh deployment info"
+              className="p-2 rounded-lg text-dim hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <RefreshCw size={16} />
+            </button>
+            <button
+              onClick={handleClearDeployment}
+              title="Clear deployment from view"
+              className="p-2 rounded-lg text-dim hover:text-red-400 hover:bg-red-400/10 transition-colors"
+            >
+              <XCircle size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
       {!activeDeployment ? (
@@ -122,17 +186,28 @@ console.log("Confidence:", result.confidence);`,
                 : 'Train your model first, then come back here to deploy it as a production-ready API.'}
             </p>
             
-            <button
-              className={`relative z-10 px-8 py-4 rounded-xl font-bold font-mono text-sm uppercase tracking-wider flex items-center justify-center gap-3 transition-all ${
-                deploying || trainingStatus !== 'completed'
-                  ? 'bg-white/5 text-dim cursor-not-allowed border border-white/10'
-                  : 'bg-cyan text-black hover:bg-cyan/90 shadow-[0_0_30px_rgba(0,242,255,0.3)] hover:-translate-y-1'
-              }`}
-              onClick={handleDeploy}
-              disabled={deploying || trainingStatus !== 'completed'}
-            >
-              {deploying ? <><Loader2 size={18} className="animate-spin" /> Deploying Model...</> : <><Rocket size={18} /> Initialize Deployment</>}
-            </button>
+            <div className="flex items-center gap-3 relative z-10">
+              <button
+                className={`px-8 py-4 rounded-xl font-bold font-mono text-sm uppercase tracking-wider flex items-center justify-center gap-3 transition-all ${
+                  deploying || trainingStatus !== 'completed'
+                    ? 'bg-white/5 text-dim cursor-not-allowed border border-white/10'
+                    : 'bg-cyan text-black hover:bg-cyan/90 shadow-[0_0_30px_rgba(0,242,255,0.3)] hover:-translate-y-1'
+                }`}
+                onClick={handleDeploy}
+                disabled={deploying || trainingStatus !== 'completed'}
+              >
+                {deploying ? <><Loader2 size={18} className="animate-spin" /> Deploying Model...</> : <><Rocket size={18} /> Initialize Deployment</>}
+              </button>
+
+              <button
+                className="px-6 py-4 rounded-xl border border-white/10 text-dim hover:text-white hover:bg-white/5 transition-colors font-mono text-sm flex items-center gap-2"
+                onClick={fetchExistingDeployment}
+                title="Check if a deployment already exists on the server"
+              >
+                <RefreshCw size={16} />
+                Restore Existing
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -153,8 +228,12 @@ console.log("Confidence:", result.confidence);`,
               <div className="w-12 h-12 rounded-xl bg-violet/10 text-violet flex items-center justify-center mb-3 border border-violet/20 shadow-[0_0_15px_rgba(138,43,226,0.1)]">
                 <Activity size={24} />
               </div>
-              <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">Accuracy</div>
-              <div className="text-lg font-bold text-white">{(activeDeployment.accuracy * 100).toFixed(1)}%</div>
+              <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">Val Accuracy</div>
+              <div className="text-lg font-bold text-white">
+                {activeDeployment.accuracy > 0
+                  ? `${(activeDeployment.accuracy * 100).toFixed(1)}%`
+                  : '—'}
+              </div>
             </div>
             
             <div className="glass-panel p-5 rounded-2xl border border-white/10 flex flex-col items-center justify-center relative overflow-hidden group">
@@ -163,7 +242,7 @@ console.log("Confidence:", result.confidence);`,
                 <Server size={24} />
               </div>
               <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">Model ID</div>
-              <div className="text-lg font-bold text-white font-mono">{activeDeployment.model_id.substring(0,8)}</div>
+              <div className="text-lg font-bold text-white font-mono">{activeDeployment.model_id?.substring(0, 8)}</div>
             </div>
           </div>
 

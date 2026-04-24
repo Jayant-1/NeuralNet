@@ -7,7 +7,7 @@ export default function Footer() {
     <footer className="border-t border-base-border/30 py-16 px-6">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
         <Link to="/">
-          <BrandLogo textSize="text-sm"   />
+          <BrandLogo textSize="text-sm" />
         </Link>
 
         <div className="flex items-center gap-6">
@@ -28,7 +28,7 @@ export default function Footer() {
         </div>
 
         <p className="font-mono text-xs text-text-dim">
-          © 2026 NeuralNet. All rights reserved.
+          © 2026 LayerNet. All rights reserved.
         </p>
       </div>
     </footer>

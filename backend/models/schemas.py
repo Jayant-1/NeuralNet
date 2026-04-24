@@ -78,6 +78,7 @@ class TrainingJobResponse(BaseModel):
     job_id: str
     status: str
     metrics: List[EpochMetric] = []
+    batch_metrics: List[dict] = []
     error_message: Optional[str] = None
     compiled_code: Optional[str] = None
     model_id: Optional[str] = None
