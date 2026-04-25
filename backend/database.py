@@ -47,7 +47,16 @@ _ENGINE = None
 def _get_engine():
     global _ENGINE
     if _ENGINE is None:
-        _ENGINE = create_engine(_DB_URL, pool_pre_ping=True)
+        # For libsql (Turso), disable SQLite isolation level detection to avoid PRAGMA errors
+        if _DB_URL.startswith("sqlite+libsql://"):
+            _ENGINE = create_engine(
+                _DB_URL,
+                pool_pre_ping=True,
+                isolation_level=None,  # Turso handles transactions server-side
+                connect_args={"check_same_thread": False},
+            )
+        else:
+            _ENGINE = create_engine(_DB_URL, pool_pre_ping=True)
     return _ENGINE
 
 
