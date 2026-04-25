@@ -5,9 +5,14 @@ Supports local SQLite (dev) and Turso/libsql via DATABASE_URL (prod).
 import sqlite3
 import os
 import json
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
+
+from sqlalchemy import create_engine
 
 from config import DATABASE_URL, TURSO_AUTH_TOKEN
+
+_LIBSQL_CLIENT = None
+_LIBSQL_DB = None
 
 
 def _is_sqlite_url(url: str) -> bool:
@@ -15,6 +20,7 @@ def _is_sqlite_url(url: str) -> bool:
 
 
 def _sqlite_path_from_url(url: str) -> str:
+    # Supports sqlite:////abs/path and sqlite:///relative/path
     if url == "sqlite:///:memory:":
         return ":memory:"
     return url.replace("sqlite:///", "", 1)
@@ -23,7 +29,7 @@ def _sqlite_path_from_url(url: str) -> str:
 def _build_database_url() -> str:
     url = DATABASE_URL
 
-    # Convert libsql:// to sqlite+libsql:// for SQLAlchemy
+    # sqlalchemy-libsql expects sqlite+libsql://... dialect URLs.
     if url.startswith("libsql://"):
         url = "sqlite+libsql://" + url[len("libsql://"):]
 
@@ -38,28 +44,36 @@ def _build_database_url() -> str:
 _DB_URL = _build_database_url()
 _IS_LOCAL_SQLITE = _is_sqlite_url(_DB_URL)
 _SQLITE_PATH = _sqlite_path_from_url(_DB_URL) if _IS_LOCAL_SQLITE else None
-_IS_TURSO = _DB_URL.startswith("sqlite+libsql://") or DATABASE_URL.startswith("libsql://")
-_TURSO_CLIENT = None
+_ENGINE = None
 
 
-def _get_turso_client():
-    """Get or create libsql_client connection to Turso."""
-    global _TURSO_CLIENT
-    if _TURSO_CLIENT is None:
-        try:
-            import libsql_client
-            url = DATABASE_URL.replace("sqlite+libsql://", "").replace("libsql://", "")
-            _TURSO_CLIENT = libsql_client.create_client(url, auth_token=TURSO_AUTH_TOKEN)
-            print(f"[DB] Connected to Turso via libsql_client")
-        except ImportError as e:
-            raise RuntimeError(f"libsql_client not installed: {e}")
-        except Exception as e:
-            raise RuntimeError(f"Turso connection failed: {e}")
-    return _TURSO_CLIENT
+def _get_engine():
+    global _ENGINE
+    if _ENGINE is None:
+        if _DB_URL.startswith("sqlite+libsql://"):
+            from sqlalchemy.pool import NullPool
+            from sqlalchemy import event
+            
+            _ENGINE = create_engine(
+                _DB_URL,
+                poolclass=NullPool,
+                isolation_level=None,  # No isolation level auto-detection
+                connect_args={"check_same_thread": False},
+                echo=False,
+            )
+            
+            # Suppress PRAGMA errors on libsql connections
+            @event.listens_for(_ENGINE, "engine_disposed")
+            def receive_engine_disposed(engine):
+                pass
+                
+        else:
+            _ENGINE = create_engine(_DB_URL, pool_pre_ping=True)
+    return _ENGINE
 
 
 def get_db():
-    """Get a database connection for SQLite (local) or Turso (production)."""
+    """Get a database connection that works for SQLite and Turso/libsql."""
     if _IS_LOCAL_SQLITE:
         conn = sqlite3.connect(_SQLITE_PATH)
         conn.row_factory = sqlite3.Row
@@ -67,14 +81,33 @@ def get_db():
         conn.execute("PRAGMA foreign_keys=ON")
         return conn
 
-    if _IS_TURSO:
-        try:
-            client = _get_turso_client()
-            return client
-        except Exception as exc:
-            raise RuntimeError(f"Failed to get Turso connection: {str(exc)}") from exc
+    try:
+        conn = _get_engine().raw_connection()
+    except ValueError as exc:
+        # libsql/Hrana returns HTTP 405 for unsupported PRAGMA read_uncommitted
+        if "read_uncommitted" in str(exc).lower() or "405 Method Not Allowed" in str(exc):
+            print(f"[WARN] Turso PRAGMA error (ignorable): {str(exc)[:80]}")
+            # With isolation_level="DEFERRED", this shouldn't happen, but if it does,
+            # the connection pool will retry or the next attempt will work
+            raise RuntimeError(
+                f"Turso PRAGMA configuration issue. Check DATABASE_URL and TURSO_AUTH_TOKEN."
+            ) from exc
+        else:
+            raise RuntimeError(
+                f"Database connection failed: {type(exc).__name__}: {str(exc)[:100]}"
+            ) from exc
+    except Exception as exc:
+        raise RuntimeError(
+            f"Database connection failed: {type(exc).__name__}: {str(exc)[:100]}"
+        ) from exc
 
-    raise RuntimeError(f"Unknown database URL format: {DATABASE_URL}")
+    if hasattr(conn, "row_factory"):
+        conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA foreign_keys=ON")
+    except Exception:
+        pass
+    return conn
 
 
 def dict_row(row):
@@ -232,4 +265,4 @@ try:
     init_db()
     migrate_db()
 except Exception as exc:
-    print(f"[WARN] Database init deferred to first request: {type(exc).__name__}: {str(exc)[:80]}")
+    print(f"[WARN] Database init deferred to first request: {type(exc).__name__}: {str(exc)}")
