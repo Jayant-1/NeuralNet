@@ -10,9 +10,15 @@ Handles:
 """
 import os
 import numpy as np
-import tensorflow as tf
 from typing import Dict, Any, List, Callable, Optional
 from config import MODEL_STORAGE_PATH
+
+
+def _get_tf():
+    """Import TensorFlow lazily to keep API startup fast."""
+    import tensorflow as tf
+
+    return tf
 
 
 def generate_synthetic_data(
@@ -131,7 +137,7 @@ def apply_preprocessing_config(
 
 def prepare_dataset_for_model(
     dataset_info: Dict[str, Any],
-    model: tf.keras.Model,
+    model: Any,
     loss_fn: str = "categorical_crossentropy",
 ) -> tuple:
     """
@@ -146,62 +152,62 @@ def prepare_dataset_for_model(
 
     # One-hot encode labels for categorical crossentropy
     if "crossentropy" in loss_fn.lower() and "sparse" not in loss_fn.lower():
+        tf = _get_tf()
         y_train = tf.keras.utils.to_categorical(y_train, num_classes)
         y_test = tf.keras.utils.to_categorical(y_test, num_classes)
 
     return x_train, y_train, x_test, y_test
 
 
-class MetricsCollector(tf.keras.callbacks.Callback):
-    """
-    Keras callback that collects metrics per epoch AND per batch.
-    """
+def _create_metrics_collector(
+    on_epoch_end_fn: Optional[Callable] = None,
+    on_batch_end_fn: Optional[Callable] = None,
+):
+    """Create a TensorFlow callback lazily after TensorFlow import."""
+    tf = _get_tf()
 
-    def __init__(
-        self,
-        on_epoch_end_fn: Optional[Callable] = None,
-        on_batch_end_fn: Optional[Callable] = None,
-    ):
-        super().__init__()
-        self.epoch_metrics: List[Dict[str, float]] = []
-        self.batch_metrics: List[Dict[str, float]] = []
-        self.on_epoch_end_fn = on_epoch_end_fn
-        self.on_batch_end_fn = on_batch_end_fn
-        self._current_epoch = 0
-        self._total_batches = 0
+    class MetricsCollector(tf.keras.callbacks.Callback):
+        def __init__(self):
+            super().__init__()
+            self.epoch_metrics: List[Dict[str, float]] = []
+            self.batch_metrics: List[Dict[str, float]] = []
+            self._current_epoch = 0
+            self._total_batches = 0
 
-    def on_epoch_begin(self, epoch, logs=None):
-        self._current_epoch = epoch + 1
+        def on_epoch_begin(self, epoch, logs=None):
+            self._current_epoch = epoch + 1
 
-    def on_batch_end(self, batch, logs=None):
-        logs = logs or {}
-        self._total_batches += 1
-        batch_data = {
-            "batch": self._total_batches,       # global batch number
-            "epoch": self._current_epoch,
-            "loss": round(float(logs.get("loss", 0)), 4),
-            "acc":  round(float(logs.get("accuracy", 0)), 4),
-        }
-        self.batch_metrics.append(batch_data)
-        if self.on_batch_end_fn:
-            self.on_batch_end_fn(batch_data)
+        def on_batch_end(self, batch, logs=None):
+            logs = logs or {}
+            self._total_batches += 1
+            batch_data = {
+                "batch": self._total_batches,
+                "epoch": self._current_epoch,
+                "loss": round(float(logs.get("loss", 0)), 4),
+                "acc": round(float(logs.get("accuracy", 0)), 4),
+            }
+            self.batch_metrics.append(batch_data)
+            if on_batch_end_fn:
+                on_batch_end_fn(batch_data)
 
-    def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
-        metrics = {
-            "epoch": epoch + 1,
-            "train_loss": round(float(logs.get("loss", 0)), 4),
-            "train_acc": round(float(logs.get("accuracy", 0)), 4),
-            "val_loss": round(float(logs.get("val_loss", 0)), 4),
-            "val_acc": round(float(logs.get("val_accuracy", 0)), 4),
-        }
-        self.epoch_metrics.append(metrics)
-        if self.on_epoch_end_fn:
-            self.on_epoch_end_fn(metrics)
+        def on_epoch_end(self, epoch, logs=None):
+            logs = logs or {}
+            metrics = {
+                "epoch": epoch + 1,
+                "train_loss": round(float(logs.get("loss", 0)), 4),
+                "train_acc": round(float(logs.get("accuracy", 0)), 4),
+                "val_loss": round(float(logs.get("val_loss", 0)), 4),
+                "val_acc": round(float(logs.get("val_accuracy", 0)), 4),
+            }
+            self.epoch_metrics.append(metrics)
+            if on_epoch_end_fn:
+                on_epoch_end_fn(metrics)
+
+    return MetricsCollector()
 
 
 def train_model(
-    model: tf.keras.Model,
+    model: Any,
     training_config: Dict[str, Any],
     on_epoch_end: Optional[Callable[[Dict[str, float]], None]] = None,
     dataset_info: Optional[Dict[str, Any]] = None,
@@ -240,7 +246,7 @@ def train_model(
             x_train, x_test, y_train, y_test = apply_preprocessing_config(
                 x_train, x_test, y_train, y_test, preprocessing_config
             )
-        collector = MetricsCollector(
+        collector = _create_metrics_collector(
             on_epoch_end_fn=on_epoch_end,
             on_batch_end_fn=lambda b: job_batch_metrics.append(b) if job_batch_metrics is not None else None,
         )
@@ -265,7 +271,7 @@ def train_model(
             input_shape, output_shape, num_samples, loss_fn
         )
 
-        collector = MetricsCollector(
+        collector = _create_metrics_collector(
             on_epoch_end_fn=on_epoch_end,
             on_batch_end_fn=lambda b: job_batch_metrics.append(b) if job_batch_metrics is not None else None,
         )
@@ -288,7 +294,7 @@ def train_model(
     }
 
 
-def save_model(model: tf.keras.Model, model_id: str) -> str:
+def save_model(model: Any, model_id: str) -> str:
     """Save a trained Keras model to disk. Returns the file path."""
     os.makedirs(MODEL_STORAGE_PATH, exist_ok=True)
     model_path = os.path.join(MODEL_STORAGE_PATH, f"{model_id}.keras")
@@ -296,17 +302,18 @@ def save_model(model: tf.keras.Model, model_id: str) -> str:
     return model_path
 
 
-def load_model(model_id: str) -> tf.keras.Model:
+def load_model(model_id: str) -> Any:
     """Load a saved Keras model from disk for inference."""
     model_path = os.path.join(MODEL_STORAGE_PATH, f"{model_id}.keras")
 
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model {model_id} not found at {model_path}")
 
+    tf = _get_tf()
     return tf.keras.models.load_model(model_path)
 
 
-def predict_with_model(model: tf.keras.Model, input_data: Any) -> Dict[str, Any]:
+def predict_with_model(model: Any, input_data: Any) -> Dict[str, Any]:
     """
     Run real inference on a loaded model.
     """
