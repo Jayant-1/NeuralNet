@@ -20,14 +20,12 @@ def _sqlite_path_from_url(url: str) -> str:
     return url.replace("sqlite:///", "", 1)
 
 
-def _build_database_url() -> str:
-    url = DATABASE_URL
+def _normalize_turso_url(url: str) -> str:
+    """Return a libsql_client-compatible Turso URL."""
+    if url.startswith("sqlite+libsql://"):
+        url = "libsql://" + url[len("sqlite+libsql://"):]
 
-    # Convert libsql:// to sqlite+libsql:// for SQLAlchemy
-    if url.startswith("libsql://"):
-        url = "sqlite+libsql://" + url[len("libsql://"):]
-
-    if url.startswith("sqlite+libsql://") and TURSO_AUTH_TOKEN and "authToken=" not in url and "auth_token=" not in url:
+    if url.startswith("libsql://") and TURSO_AUTH_TOKEN and "authToken=" not in url and "auth_token=" not in url:
         separator = "&" if "?" in url else "?"
         token = quote_plus(TURSO_AUTH_TOKEN)
         return f"{url}{separator}authToken={token}"
@@ -35,10 +33,14 @@ def _build_database_url() -> str:
     return url
 
 
+def _build_database_url() -> str:
+    return _normalize_turso_url(DATABASE_URL)
+
+
 _DB_URL = _build_database_url()
 _IS_LOCAL_SQLITE = _is_sqlite_url(_DB_URL)
 _SQLITE_PATH = _sqlite_path_from_url(_DB_URL) if _IS_LOCAL_SQLITE else None
-_IS_TURSO = _DB_URL.startswith("sqlite+libsql://") or DATABASE_URL.startswith("libsql://")
+_IS_TURSO = _DB_URL.startswith("libsql://") or DATABASE_URL.startswith("sqlite+libsql://") or DATABASE_URL.startswith("libsql://")
 _TURSO_CLIENT = None
 
 
@@ -48,7 +50,7 @@ def _get_turso_client():
     if _TURSO_CLIENT is None:
         try:
             import libsql_client
-            url = DATABASE_URL.replace("sqlite+libsql://", "").replace("libsql://", "")
+            url = _normalize_turso_url(DATABASE_URL)
             _TURSO_CLIENT = libsql_client.create_client(url, auth_token=TURSO_AUTH_TOKEN)
             print(f"[DB] Connected to Turso via libsql_client")
         except ImportError as e:
