@@ -4,6 +4,7 @@ Pydantic schemas for request/response validation
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from pydantic import ConfigDict
 
 
 # ======================== Graph ========================
@@ -75,6 +76,7 @@ class EpochMetric(BaseModel):
 
 
 class TrainingJobResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     job_id: str
     status: str
     metrics: List[EpochMetric] = []
@@ -86,12 +88,14 @@ class TrainingJobResponse(BaseModel):
 
 # ======================== Deployment ========================
 class DeployRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     project_id: str
     model_id: Optional[str] = None         # The trained model_id from training job
     training_job_id: Optional[str] = None  # Legacy fallback
 
 
 class DeployResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     model_id: str
     api_key: str
     endpoint_url: str
@@ -104,6 +108,7 @@ class PredictRequest(BaseModel):
 
 
 class PredictResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     status: str
     model_id: str
     predictions: Any

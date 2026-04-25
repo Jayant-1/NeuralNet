@@ -21,14 +21,16 @@ def _sqlite_path_from_url(url: str) -> str:
 
 
 def _normalize_turso_url(url: str) -> str:
-    """Return a libsql_client-compatible Turso URL."""
+    """Return a libsql_client-compatible Turso URL. We prefer HTTPS to avoid WS 505 errors."""
     if url.startswith("sqlite+libsql://"):
-        url = "libsql://" + url[len("sqlite+libsql://"):]
+        url = "https://" + url[len("sqlite+libsql://"):]
+    elif url.startswith("libsql://"):
+        url = "https://" + url[len("libsql://"):]
 
-    if url.startswith("libsql://") and TURSO_AUTH_TOKEN and "authToken=" not in url and "auth_token=" not in url:
-        separator = "&" if "?" in url else "?"
-        token = quote_plus(TURSO_AUTH_TOKEN)
-        return f"{url}{separator}authToken={token}"
+    if "?" in url:
+        base, query = url.split("?", 1)
+        params = [p for p in query.split("&") if not p.lower().startswith("authtoken=")]
+        url = base + ("?" + "&".join(params) if params else "")
 
     return url
 
@@ -38,9 +40,9 @@ def _build_database_url() -> str:
 
 
 _DB_URL = _build_database_url()
-_IS_LOCAL_SQLITE = _is_sqlite_url(_DB_URL)
-_SQLITE_PATH = _sqlite_path_from_url(_DB_URL) if _IS_LOCAL_SQLITE else None
-_IS_TURSO = _DB_URL.startswith("libsql://") or DATABASE_URL.startswith("sqlite+libsql://") or DATABASE_URL.startswith("libsql://")
+_IS_LOCAL_SQLITE = _is_sqlite_url(DATABASE_URL)
+_SQLITE_PATH = _sqlite_path_from_url(DATABASE_URL) if _IS_LOCAL_SQLITE else None
+_IS_TURSO = not _IS_LOCAL_SQLITE
 _TURSO_CLIENT = None
 
 
