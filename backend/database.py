@@ -114,13 +114,8 @@ async def db_commit(conn):
 
 async def db_close(conn):
     if _is_turso_connection(conn):
-        close_fn = getattr(conn, "close", None)
-        if close_fn is None:
-            return None
-        result = close_fn()
-        if hasattr(result, "__await__"):
-            return await result
-        return result
+        # We use a global libsql_client, so do not close it per request
+        return None
     return conn.close()
 
 
@@ -238,12 +233,8 @@ async def _init_db_turso():
 
     for statement in statements:
         await conn.execute(statement)
-
-    close_fn = getattr(conn, "close", None)
-    if close_fn is not None:
-        result = close_fn()
-        if hasattr(result, "__await__"):
-            await result
+        
+    # We use a global libsql_client, do not close it here
 
 
 def init_db():
