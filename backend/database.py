@@ -41,7 +41,14 @@ def _build_database_url() -> str:
 _DB_URL = _build_database_url()
 _IS_LOCAL_SQLITE = _is_sqlite_url(_DB_URL)
 _SQLITE_PATH = _sqlite_path_from_url(_DB_URL) if _IS_LOCAL_SQLITE else None
-_ENGINE = None if _IS_LOCAL_SQLITE else create_engine(_DB_URL, pool_pre_ping=True)
+_ENGINE = None
+
+
+def _get_engine():
+    global _ENGINE
+    if _ENGINE is None:
+        _ENGINE = create_engine(_DB_URL, pool_pre_ping=True)
+    return _ENGINE
 
 
 def get_db():
@@ -53,7 +60,14 @@ def get_db():
         conn.execute("PRAGMA foreign_keys=ON")
         return conn
 
-    conn = _ENGINE.raw_connection()
+    try:
+        conn = _get_engine().raw_connection()
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not connect to database using DATABASE_URL='{DATABASE_URL}'. "
+            "For Turso, verify TURSO_AUTH_TOKEN and sqlalchemy-libsql installation."
+        ) from exc
+
     if hasattr(conn, "row_factory"):
         conn.row_factory = sqlite3.Row
     try:
@@ -209,6 +223,9 @@ def migrate_db():
     conn.close()
 
 
-# Auto-init and migrate on import
-init_db()
-migrate_db()
+# Auto-init and migrate on import (best-effort so app can still start and expose logs/health)
+try:
+    init_db()
+    migrate_db()
+except Exception as exc:
+    print(f"[WARN] Database init skipped at startup: {exc}")
