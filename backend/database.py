@@ -95,14 +95,24 @@ async def db_fetchone(conn, sql: str, params=()):
     result = await db_execute(conn, sql, params)
     if _is_turso_connection(conn):
         rows = getattr(result, "rows", []) or []
-        return rows[0] if rows else None
+        if not rows:
+            return None
+        row = rows[0]
+        columns = getattr(result, "columns", tuple())
+        if columns:
+            return {col: val for col, val in zip(columns, row)}
+        return row
     return result.fetchone()
 
 
 async def db_fetchall(conn, sql: str, params=()):
     result = await db_execute(conn, sql, params)
     if _is_turso_connection(conn):
-        return list(getattr(result, "rows", []) or [])
+        rows = getattr(result, "rows", []) or []
+        columns = getattr(result, "columns", tuple())
+        if columns:
+            return [{col: val for col, val in zip(columns, row)} for row in rows]
+        return list(rows)
     return result.fetchall()
 
 
