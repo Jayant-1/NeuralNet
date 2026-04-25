@@ -26,7 +26,7 @@ training_jobs: dict = {}
 trained_models: dict = {}
 
 
-def run_training(job_id: str, config: TrainingConfig):
+async def run_training(job_id: str, config: TrainingConfig):
     """
     Background training task — REAL model training.
     1. Build model from graph via AST
@@ -76,14 +76,16 @@ def run_training(job_id: str, config: TrainingConfig):
 
         # Load project's preprocessing config from DB
         from database import get_db, dict_row
+        from database import db_fetchone, db_close
         preprocessing_config = {}
         try:
             conn = get_db()
-            row = conn.execute(
+            row = await db_fetchone(
+                conn,
                 "SELECT preprocessing_config FROM projects WHERE id = ?",
                 (config.project_id,)
-            ).fetchone()
-            conn.close()
+            )
+            await db_close(conn)
             if row:
                 import json
                 raw = row[0]

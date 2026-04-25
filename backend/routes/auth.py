@@ -22,7 +22,7 @@ class LoginRequest(BaseModel):
 @router.post("/auth/signup")
 async def signup(req: SignupRequest):
     try:
-        result = register_user(req.email, req.password, req.full_name)
+        result = await register_user(req.email, req.password, req.full_name)
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -31,7 +31,7 @@ async def signup(req: SignupRequest):
 @router.post("/auth/login")
 async def login(req: LoginRequest):
     try:
-        result = login_user(req.email, req.password)
+        result = await login_user(req.email, req.password)
         return result
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))

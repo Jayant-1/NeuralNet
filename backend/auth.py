@@ -12,7 +12,7 @@ import base64
 from datetime import datetime, timezone, timedelta
 from fastapi import Depends, HTTPException, Header
 from typing import Optional
-from database import get_db, dict_row
+from database import get_db, dict_row, db_fetchone, db_close, db_execute, db_commit
 
 # Simple secret key for JWT signing
 from config import JWT_SECRET as SECRET_KEY
@@ -90,12 +90,12 @@ def _decode_jwt(token: str) -> dict:
         raise ValueError(f"Invalid token: {e}")
 
 
-def register_user(email: str, password: str, full_name: str = "") -> dict:
+async def register_user(email: str, password: str, full_name: str = "") -> dict:
     """Register a new user. Returns user dict + token."""
     conn = get_db()
     try:
         # Check if user exists
-        existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+        existing = await db_fetchone(conn, "SELECT id FROM users WHERE email = ?", (email,))
         if existing:
             raise ValueError("Email already registered")
 
@@ -103,11 +103,12 @@ def register_user(email: str, password: str, full_name: str = "") -> dict:
         password_hash = _hash_password(password)
         now = datetime.now(timezone.utc).isoformat()
 
-        conn.execute(
+        await db_execute(
+            conn,
             "INSERT INTO users (id, email, password_hash, full_name, created_at) VALUES (?, ?, ?, ?, ?)",
             (user_id, email, password_hash, full_name, now),
         )
-        conn.commit()
+        await db_commit(conn)
 
         token = _create_jwt(user_id, email)
         return {
@@ -120,14 +121,14 @@ def register_user(email: str, password: str, full_name: str = "") -> dict:
             "token": token,
         }
     finally:
-        conn.close()
+        await db_close(conn)
 
 
-def login_user(email: str, password: str) -> dict:
+async def login_user(email: str, password: str) -> dict:
     """Authenticate user. Returns user dict + token."""
     conn = get_db()
     try:
-        row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        row = await db_fetchone(conn, "SELECT * FROM users WHERE email = ?", (email,))
         if not row:
             raise ValueError("Invalid email or password")
 
@@ -146,7 +147,7 @@ def login_user(email: str, password: str) -> dict:
             "token": token,
         }
     finally:
-        conn.close()
+        await db_close(conn)
 
 
 async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
@@ -162,11 +163,11 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
         # Guard against stale JWTs that reference users removed from the local DB.
         conn = get_db()
         try:
-            row = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+            row = await db_fetchone(conn, "SELECT id FROM users WHERE id = ?", (user_id,))
             if not row:
                 raise HTTPException(status_code=401, detail="User not found. Please sign in again.")
         finally:
-            conn.close()
+            await db_close(conn)
 
         return user_id
     except ValueError as e:

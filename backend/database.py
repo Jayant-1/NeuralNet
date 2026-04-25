@@ -79,6 +79,49 @@ def get_db():
     raise RuntimeError(f"Unknown database URL format: {DATABASE_URL}")
 
 
+def _is_turso_connection(conn) -> bool:
+    return _IS_TURSO and not isinstance(conn, sqlite3.Connection)
+
+
+async def db_execute(conn, sql: str, params=()):
+    if _is_turso_connection(conn):
+        return await conn.execute(sql, params)
+    return conn.execute(sql, params)
+
+
+async def db_fetchone(conn, sql: str, params=()):
+    result = await db_execute(conn, sql, params)
+    if _is_turso_connection(conn):
+        rows = getattr(result, "rows", []) or []
+        return rows[0] if rows else None
+    return result.fetchone()
+
+
+async def db_fetchall(conn, sql: str, params=()):
+    result = await db_execute(conn, sql, params)
+    if _is_turso_connection(conn):
+        return list(getattr(result, "rows", []) or [])
+    return result.fetchall()
+
+
+async def db_commit(conn):
+    if _is_turso_connection(conn):
+        return None
+    return conn.commit()
+
+
+async def db_close(conn):
+    if _is_turso_connection(conn):
+        close_fn = getattr(conn, "close", None)
+        if close_fn is None:
+            return None
+        result = close_fn()
+        if hasattr(result, "__await__"):
+            return await result
+        return result
+    return conn.close()
+
+
 def dict_row(row):
     """Convert DB row to dict, parsing JSON fields when present."""
     if row is None:
@@ -106,8 +149,105 @@ def dict_row(row):
     return d
 
 
+async def _init_db_turso():
+    """Create all tables for Turso using async libsql client."""
+    conn = get_db()
+    statements = [
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            full_name TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS projects (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            template TEXT DEFAULT 'custom',
+            graph_data TEXT DEFAULT '{"nodes":[],"edges":[]}',
+            preprocessing_config TEXT DEFAULT '{}',
+            problem_type TEXT DEFAULT 'classification',
+            input_type TEXT DEFAULT 'tabular',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS datasets (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            user_id TEXT NOT NULL REFERENCES users(id),
+            file_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            file_size INTEGER DEFAULT 0,
+            file_type TEXT DEFAULT 'csv',
+            uploaded_at TEXT DEFAULT (datetime('now'))
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS training_jobs (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            user_id TEXT NOT NULL REFERENCES users(id),
+            status TEXT DEFAULT 'pending' CHECK (status IN ('pending','running','completed','failed')),
+            config TEXT DEFAULT '{}',
+            metrics TEXT DEFAULT '[]',
+            error_message TEXT,
+            started_at TEXT,
+            completed_at TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS models (
+            id TEXT PRIMARY KEY,
+            training_job_id TEXT REFERENCES training_jobs(id),
+            project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            user_id TEXT NOT NULL REFERENCES users(id),
+            model_path TEXT,
+            accuracy REAL,
+            loss REAL,
+            file_size INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS deployments (
+            id TEXT PRIMARY KEY,
+            model_id TEXT,
+            user_id TEXT NOT NULL REFERENCES users(id),
+            api_key TEXT UNIQUE NOT NULL,
+            endpoint_url TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            request_count INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_datasets_project ON datasets(project_id)",
+        "CREATE INDEX IF NOT EXISTS idx_training_project ON training_jobs(project_id)",
+        "CREATE INDEX IF NOT EXISTS idx_deploy_apikey ON deployments(api_key)",
+    ]
+
+    for statement in statements:
+        await conn.execute(statement)
+
+    close_fn = getattr(conn, "close", None)
+    if close_fn is not None:
+        result = close_fn()
+        if hasattr(result, "__await__"):
+            await result
+
+
 def init_db():
     """Create all tables if they don't exist."""
+    if _IS_TURSO:
+        raise RuntimeError("Use initialize_database() for Turso")
     conn = get_db()
     cursor = conn.cursor()
 
@@ -202,8 +342,15 @@ def init_db():
     print(f"[OK] Database initialized ({backend})")
 
 
+async def _migrate_db_turso():
+    """No-op for Turso; schema is created during init and migration is handled elsewhere."""
+    return None
+
+
 def migrate_db():
     """Add any missing columns to existing tables (safe to run on every startup)."""
+    if _IS_TURSO:
+        raise RuntimeError("Use initialize_database() for Turso")
     conn = get_db()
     cursor = conn.cursor()
 
@@ -225,13 +372,27 @@ def migrate_db():
     conn.close()
 
 
+async def initialize_database():
+    """Initialize schema and migrations for the active database backend."""
+    if _IS_LOCAL_SQLITE:
+        init_db()
+        migrate_db()
+        return
+
+    await _init_db_turso()
+    await _migrate_db_turso()
+
+
 # Auto-init and migrate on import (best-effort so app can still start and expose logs/health)
 print(f"[DB] Using {('SQLite' if _IS_LOCAL_SQLITE else 'Turso/libsql')} backend")
 if not _IS_LOCAL_SQLITE:
     print(f"[DB] Connection URL: {_DB_URL[:60]}..." if len(_DB_URL) > 60 else f"[DB] Connection URL: {_DB_URL}")
 
 try:
-    init_db()
-    migrate_db()
+    if _IS_LOCAL_SQLITE:
+        init_db()
+        migrate_db()
+    else:
+        print("[DB] Turso schema initialization deferred to startup")
 except Exception as exc:
     print(f"[WARN] Database init deferred to first request: {type(exc).__name__}: {str(exc)[:80]}")

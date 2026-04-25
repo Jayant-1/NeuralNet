@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from auth import get_current_user
 from models.schemas import ProjectCreate, ProjectUpdate, ProjectResponse
-from database import get_db, dict_row
+from database import get_db, dict_row, db_fetchone, db_fetchall, db_execute, db_commit, db_close
 
 router = APIRouter()
 
@@ -27,13 +27,14 @@ async def create_project(
 
     conn = get_db()
     try:
-        conn.execute(
+        await db_execute(
+            conn,
             """INSERT INTO projects (id, user_id, name, description, template, graph_data, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (project_id, user_id, project.name, project.description,
              project.template, graph_json, now, now),
         )
-        conn.commit()
+        await db_commit(conn)
 
         return ProjectResponse(
             id=project_id, name=project.name, description=project.description,
@@ -44,17 +45,18 @@ async def create_project(
             created_at=now, updated_at=now,
         )
     finally:
-        conn.close()
+        await db_close(conn)
 
 
 @router.get("/projects", response_model=List[ProjectResponse])
 async def list_projects(user_id: str = Depends(get_current_user)):
     conn = get_db()
     try:
-        rows = conn.execute(
+        rows = await db_fetchall(
+            conn,
             "SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC",
             (user_id,),
-        ).fetchall()
+        )
         results = []
         for r in rows:
             d = dict_row(r)
@@ -65,7 +67,7 @@ async def list_projects(user_id: str = Depends(get_current_user)):
             results.append(ProjectResponse(**d))
         return results
     finally:
-        conn.close()
+        await db_close(conn)
 
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
@@ -75,10 +77,11 @@ async def get_project(
 ):
     conn = get_db()
     try:
-        row = conn.execute(
+        row = await db_fetchone(
+            conn,
             "SELECT * FROM projects WHERE id = ? AND user_id = ?",
             (project_id, user_id),
-        ).fetchone()
+        )
         if not row:
             raise HTTPException(status_code=404, detail="Project not found")
         d = dict_row(row)
@@ -87,7 +90,7 @@ async def get_project(
         d.setdefault("input_type", "tabular")
         return ProjectResponse(**d)
     finally:
-        conn.close()
+        await db_close(conn)
 
 
 @router.put("/projects/{project_id}", response_model=ProjectResponse)
@@ -98,10 +101,11 @@ async def update_project(
 ):
     conn = get_db()
     try:
-        row = conn.execute(
+        row = await db_fetchone(
+            conn,
             "SELECT * FROM projects WHERE id = ? AND user_id = ?",
             (project_id, user_id),
-        ).fetchone()
+        )
         if not row:
             raise HTTPException(status_code=404, detail="Project not found")
 
@@ -114,21 +118,22 @@ async def update_project(
                    else json.dumps(current.get("preprocessing_config", {})))
         now = datetime.now(timezone.utc).isoformat()
 
-        conn.execute(
+        await db_execute(
+            conn,
             """UPDATE projects SET name=?, description=?, graph_data=?,
                preprocessing_config=?, updated_at=?
                WHERE id=? AND user_id=?""",
             (name, desc, graph, preproc, now, project_id, user_id),
         )
-        conn.commit()
+        await db_commit(conn)
 
-        updated = dict_row(conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone())
+        updated = dict_row(await db_fetchone(conn, "SELECT * FROM projects WHERE id = ?", (project_id,)))
         updated.setdefault("preprocessing_config", {})
         updated.setdefault("problem_type", "classification")
         updated.setdefault("input_type", "tabular")
         return ProjectResponse(**updated)
     finally:
-        conn.close()
+        await db_close(conn)
 
 
 @router.delete("/projects/{project_id}")
@@ -138,15 +143,16 @@ async def delete_project(
 ):
     conn = get_db()
     try:
-        row = conn.execute(
+        row = await db_fetchone(
+            conn,
             "SELECT id FROM projects WHERE id = ? AND user_id = ?",
             (project_id, user_id),
-        ).fetchone()
+        )
         if not row:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
-        conn.commit()
+        await db_execute(conn, "DELETE FROM projects WHERE id = ?", (project_id,))
+        await db_commit(conn)
         return {"message": "Project deleted"}
     finally:
-        conn.close()
+        await db_close(conn)

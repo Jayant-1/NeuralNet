@@ -15,6 +15,7 @@ from routes import auth, projects, training, deployment, predict, datasets, comp
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("[START] NeuralNet backend starting...")
+    await database.initialize_database()
     yield
     print("[STOP] NeuralNet backend shutting down...")
 
