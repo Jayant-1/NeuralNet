@@ -172,3 +172,47 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
         return user_id
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+
+async def update_profile(user_id: str, full_name: str):
+    """Update user's full name."""
+    conn = get_db()
+    try:
+        await db_execute(conn, "UPDATE users SET full_name = ? WHERE id = ?", (full_name, user_id))
+        await db_commit(conn)
+    finally:
+        await db_close(conn)
+
+
+async def change_password(user_id: str, current_password: str, new_password: str):
+    """Change user password, verifying current password first."""
+    conn = get_db()
+    try:
+        row = await db_fetchone(conn, "SELECT password_hash FROM users WHERE id = ?", (user_id,))
+        if not row:
+            raise ValueError("User not found")
+        
+        user = dict_row(row)
+        if not _verify_password(current_password, user["password_hash"]):
+            raise ValueError("Incorrect current password")
+            
+        new_hash = _hash_password(new_password)
+        await db_execute(conn, "UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+        await db_commit(conn)
+    finally:
+        await db_close(conn)
+
+
+async def delete_account(user_id: str):
+    """Delete a user account and explicitly clean up un-cascaded resources."""
+    conn = get_db()
+    try:
+        # Delete deployments explicitly because they don't have ON DELETE CASCADE
+        await db_execute(conn, "DELETE FROM deployments WHERE user_id = ?", (user_id,))
+        
+        # Then delete user, cascading through projects, datasets, models, training_jobs
+        await db_execute(conn, "DELETE FROM users WHERE id = ?", (user_id,))
+        await db_commit(conn)
+    finally:
+        await db_close(conn)
+

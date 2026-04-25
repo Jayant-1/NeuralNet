@@ -9,6 +9,9 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import DashboardPage from './pages/DashboardPage';
+import DatasetsPage from './pages/DatasetsPage';
+import DeploymentsPage from './pages/DeploymentsPage';
+import SettingsPage from './pages/SettingsPage';
 import ProjectWorkspace from './pages/ProjectWorkspace';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -144,6 +147,9 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/datasets" element={<ProtectedRoute><DatasetsPage /></ProtectedRoute>} />
+        <Route path="/deployments" element={<ProtectedRoute><DeploymentsPage /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/project/:projectId" element={<ProtectedRoute><ProjectWorkspace /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

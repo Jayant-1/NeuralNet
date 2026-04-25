@@ -18,6 +18,7 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
+import Sidebar from "../components/Sidebar";
 import ProjectWizard from "../components/Project/ProjectWizard";
 import { projectsApi } from "../services/api";
 import { useAuthStore, useProjectStore } from "../store/store";
@@ -110,62 +111,7 @@ const DashboardPage = () => {
   return (
     <div className="flex h-screen w-full bg-[#0B0B0F] overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 glass-panel border-r border-white/5 flex flex-col h-full z-10 shrink-0">
-        <div className="flex-1 p-6">
-          {/* Logo */}
-          <div className="flex items-center gap-3 mb-10">
-            <div
-              className="cursor-pointer"
-              onClick={() => navigate("/")}
-              title="Home"
-            >
-              <BrandLogo textSize="text-xl" />
-            </div>
-          </div>
-
-          <nav className="flex flex-col gap-2">
-            <a className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-mono text-cyan bg-cyan/10 hover:bg-cyan/15 cursor-pointer transition-all">
-              <LayoutDashboard size={18} />
-              <span>Dashboard</span>
-            </a>
-            <a className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-mono text-dim hover:text-white hover:bg-white/5 cursor-pointer transition-all">
-              <FolderOpen size={18} />
-              <span>Projects</span>
-            </a>
-            <a className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-mono text-dim hover:text-white hover:bg-white/5 cursor-pointer transition-all">
-              <Cpu size={18} />
-              <span>Models</span>
-            </a>
-            <a className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-mono text-dim hover:text-white hover:bg-white/5 cursor-pointer transition-all">
-              <Settings size={18} />
-              <span>Settings</span>
-            </a>
-          </nav>
-        </div>
-
-        <div className="p-6 border-t border-white/5 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-violet/20 border border-violet/30 flex items-center justify-center text-violet font-bold font-heading">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex flex-col overflow-hidden">
-              <span className="text-sm font-medium text-white truncate">
-                {displayName}
-              </span>
-              <span className="text-xs text-dim truncate">
-                {user?.email || "user@example.com"}
-              </span>
-            </div>
-          </div>
-          <button
-            className="w-full py-2 flex items-center justify-center gap-2 text-sm text-dim hover:text-acid hover:bg-acid/10 rounded-xl transition-all font-mono"
-            onClick={handleLogout}
-          >
-            <LogOut size={16} />
-            Sign Out
-          </button>
-        </div>
-      </aside>
+      <Sidebar activePage="dashboard" />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-full overflow-y-auto relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan/5 via-[#0B0B0F] to-[#0B0B0F]">
