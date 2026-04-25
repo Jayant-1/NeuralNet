@@ -38,7 +38,7 @@ Frontend
 Backend
 
 - FastAPI
-- SQLite (local database)
+- SQLite (local development) / Turso libsql (production)
 - TensorFlow / Keras
 - NumPy
 - Pydantic
@@ -94,6 +94,8 @@ Backend reads environment variables from backend/.env if present.
 Supported settings:
 
 - JWT_SECRET: JWT signing secret
+- DATABASE_URL: database connection URL (default local SQLite)
+- TURSO_AUTH_TOKEN: auth token for Turso when using a libsql URL
 - MODEL_STORAGE_PATH: directory for saved .keras models
 
 If not provided, safe local defaults are used.
@@ -141,7 +143,8 @@ Health
 
 ## Data and Model Persistence
 
-- SQLite database is stored at backend/layerlab.db
+- Local development uses SQLite at backend/layerlab.db
+- Production can use Turso via DATABASE_URL=libsql://...
 - Trained models are stored under backend/model_storage
 - Deployment metadata persists in backend/deployments.json
 

@@ -10,5 +10,9 @@ services:
         value: 3.11.9
       - key: JWT_SECRET
         sync: false
+      - key: DATABASE_URL
+        value: libsql://neuralnet-jayant.aws-ap-south-1.turso.io
+      - key: TURSO_AUTH_TOKEN
+        sync: false
       - key: MODEL_STORAGE_PATH
         value: ./model_storage
