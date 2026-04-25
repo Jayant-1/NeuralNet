@@ -98,6 +98,13 @@ Supported settings:
 - TURSO_AUTH_TOKEN: auth token for Turso when using a libsql URL
 - MODEL_STORAGE_PATH: directory for saved .keras models
 
+Turso examples:
+
+- DATABASE_URL=libsql://neuralnet-jayant.aws-ap-south-1.turso.io
+- DATABASE_URL=sqlite+libsql://neuralnet-jayant.aws-ap-south-1.turso.io
+
+The backend auto-converts libsql:// to sqlite+libsql:// for SQLAlchemy compatibility.
+
 If not provided, safe local defaults are used.
 
 ## Main API Endpoints

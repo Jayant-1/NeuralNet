@@ -25,10 +25,16 @@ def _sqlite_path_from_url(url: str) -> str:
 
 def _build_database_url() -> str:
     url = DATABASE_URL
-    if url.startswith("libsql://") and TURSO_AUTH_TOKEN and "authToken=" not in url:
+
+    # sqlalchemy-libsql expects sqlite+libsql://... dialect URLs.
+    if url.startswith("libsql://"):
+        url = "sqlite+libsql://" + url[len("libsql://"):]
+
+    if url.startswith("sqlite+libsql://") and TURSO_AUTH_TOKEN and "authToken=" not in url and "auth_token=" not in url:
         separator = "&" if "?" in url else "?"
         token = quote_plus(TURSO_AUTH_TOKEN)
         return f"{url}{separator}authToken={token}"
+
     return url
 
 
