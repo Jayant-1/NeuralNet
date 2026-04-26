@@ -433,8 +433,10 @@ export default function HeroSection() {
         ref={headlineRef}
       >
         <h1 className="font-heading font-bold text-5xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-[0.95]">
-          <span className="block text-white">Stop Coding.</span>
-          <span className="block gradient-text mt-2">
+          <span className="block text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.18)]">
+            Stop Coding.
+          </span>
+          <span className="block gradient-text mt-2 brightness-110">
             Start Weaving Intelligence.
           </span>
         </h1>
@@ -442,7 +444,7 @@ export default function HeroSection() {
 
       <p
         ref={subRef}
-        className="relative z-10 text-text-dim font-mono text-sm md:text-base max-w-xl text-center my-4"
+        className="relative z-10 text-text-dim/90 font-mono text-sm md:text-base hover:text-zinc-400 max-w-xl text-center my-4"
       >
         Drag the nodes below. Connect them. Watch intelligence flow.
         <br />
@@ -453,14 +455,14 @@ export default function HeroSection() {
         <a
           href="#workspace"
           data-hover
-          className="px-7 py-3 rounded-full bg-cyan/10 border border-cyan/30 text-cyan font-mono text-sm hover:bg-cyan/20 transition-all duration-300"
+          className="px-7 py-3 rounded-full bg-cyan/15 border border-cyan/40 text-cyan-300 font-mono text-sm hover:bg-cyan/25 transition-all duration-300"
         >
           Explore Builder
         </a>
         <a
           href="#deploy"
           data-hover="launch"
-          className="px-7 py-3 rounded-full bg-acid/10 border border-acid/30 text-acid font-mono text-sm hover:bg-acid/20 transition-all duration-300"
+          className="px-7 py-3 rounded-full bg-acid/15 border border-acid/40 text-lime-300 font-mono text-sm hover:bg-acid/25 transition-all duration-300"
         >
           Deploy Now
         </a>

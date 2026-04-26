@@ -274,6 +274,16 @@ button::after {
   background: rgba(0, 255, 65, 0.15);
 }
 
+/* Temporarily disable global custom cursor while pointer is inside builder canvas */
+body.use-custom-cursor.canvas-native-cursor .custom-cursor {
+  opacity: 0;
+}
+
+body.use-custom-cursor .builder-canvas-surface,
+body.use-custom-cursor .builder-canvas-surface * {
+  cursor: auto !important;
+}
+
 /* ── Mouse Follower Glow ── */
 .mouse-follower {
   position: fixed;
