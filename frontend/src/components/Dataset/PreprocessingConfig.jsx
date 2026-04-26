@@ -191,7 +191,7 @@ const PreprocessingConfig = ({ projectId, problemType }) => {
                     {/* Toggle Switch */}
                     <div 
                       className={`relative w-12 h-6 rounded-full transition-colors duration-300 shrink-0 mt-0.5 border ${
-                        isOn ? `${group.activeColor} border-transparent shadow-[0_0_10px_currentColor]` : 'bg-[#0B0B0F] border-white/20'
+                        isOn ? `${group.activeColor} border-transparent` : 'bg-[#0B0B0F] border-white/20'
                       }`}
                     >
                       <div 
