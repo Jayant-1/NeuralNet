@@ -10,6 +10,11 @@ export default function Footer() {
           <BrandLogo textSize="text-sm" />
         </Link>
 
+        <p className="font-mono text-xs text-text-dim tracking-wide text-center max-w-sm">
+          Design neural systems like an editorial team: structured, legible, and
+          built to ship.
+        </p>
+
         <div className="flex items-center gap-6">
           {[
             { icon: Github, href: "#" },
@@ -28,7 +33,7 @@ export default function Footer() {
         </div>
 
         <p className="font-mono text-xs text-text-dim">
-          © 2026 NeuralNet. All rights reserved.
+          © 2026 NeuralNet Studio. Designed for high-signal ML teams.
         </p>
       </div>
     </footer>

@@ -1,20 +1,36 @@
+import {
+  Accessibility,
+  AlertTriangle,
+  Lock,
+  MousePointer2,
+  Save,
+  Shield,
+  Trash2,
+  User,
+  Waves,
+} from "lucide-react";
 import React, { useState } from "react";
-import Sidebar from "../components/Sidebar";
-import { User, Shield, Lock, AlertTriangle, Save, Trash2 } from "lucide-react";
-import { useAuthStore } from "../store/store";
-import { authApi } from "../services/api";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import Sidebar from "../components/Sidebar";
+import { authApi } from "../services/api";
+import { useAuthStore } from "../store/store";
 
 const SettingsPage = () => {
   const { user, setUser, logout } = useAuthStore();
   const navigate = useNavigate();
-  
+
   const [fullName, setFullName] = useState(user?.full_name || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [customCursorEnabled, setCustomCursorEnabled] = useState(
+    localStorage.getItem("nn_pref_custom_cursor") !== "false",
+  );
+  const [reduceMotion, setReduceMotion] = useState(
+    localStorage.getItem("nn_pref_reduce_motion") === "true",
+  );
 
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
@@ -44,7 +60,7 @@ const SettingsPage = () => {
       toast.error("New passwords do not match");
       return;
     }
-    
+
     setLoadingPassword(true);
     try {
       await authApi.changePassword(currentPassword, newPassword);
@@ -74,6 +90,30 @@ const SettingsPage = () => {
     }
   };
 
+  const handleCursorToggle = () => {
+    const next = !customCursorEnabled;
+    setCustomCursorEnabled(next);
+    localStorage.setItem("nn_pref_custom_cursor", String(next));
+    window.dispatchEvent(
+      new CustomEvent("nn-prefs-changed", {
+        detail: { customCursorEnabled: next, reduceMotion },
+      }),
+    );
+    toast.success(next ? "Custom cursor enabled" : "System cursor enabled");
+  };
+
+  const handleMotionToggle = () => {
+    const next = !reduceMotion;
+    setReduceMotion(next);
+    localStorage.setItem("nn_pref_reduce_motion", String(next));
+    window.dispatchEvent(
+      new CustomEvent("nn-prefs-changed", {
+        detail: { customCursorEnabled, reduceMotion: next },
+      }),
+    );
+    toast.success(next ? "Reduced motion enabled" : "Standard motion enabled");
+  };
+
   return (
     <div className="flex h-screen w-full bg-[#0B0B0F] overflow-hidden">
       <Sidebar activePage="settings" />
@@ -91,18 +131,24 @@ const SettingsPage = () => {
             </p>
           </div>
 
-          <div className="space-y-8 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-            
+          <div
+            className="space-y-8 animate-fade-in-up"
+            style={{ animationDelay: "0.1s" }}
+          >
             {/* Profile Section */}
             <section className="glass-panel p-8 rounded-3xl border border-white/5">
               <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
                 <User className="text-cyan" size={24} />
-                <h2 className="text-xl font-heading font-bold text-white">Profile Information</h2>
+                <h2 className="text-xl font-heading font-bold text-white">
+                  Profile Information
+                </h2>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                  <label className="block text-xs font-mono text-dim uppercase tracking-wider mb-2">Full Name</label>
+                  <label className="block text-xs font-mono text-dim uppercase tracking-wider mb-2">
+                    Full Name
+                  </label>
                   <input
                     type="text"
                     value={fullName}
@@ -112,7 +158,9 @@ const SettingsPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-dim uppercase tracking-wider mb-2">Email Address</label>
+                  <label className="block text-xs font-mono text-dim uppercase tracking-wider mb-2">
+                    Email Address
+                  </label>
                   <input
                     type="email"
                     defaultValue={user?.email}
@@ -122,7 +170,7 @@ const SettingsPage = () => {
                 </div>
               </div>
               <div className="flex justify-end">
-                <button 
+                <button
                   onClick={handleUpdateProfile}
                   disabled={loadingProfile}
                   className="px-6 py-2.5 rounded-xl bg-cyan/10 text-cyan border border-cyan/30 hover:bg-cyan/20 transition-colors font-mono text-sm font-bold flex items-center gap-2 disabled:opacity-50"
@@ -137,12 +185,16 @@ const SettingsPage = () => {
             <section className="glass-panel p-8 rounded-3xl border border-white/5">
               <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
                 <Lock className="text-violet" size={24} />
-                <h2 className="text-xl font-heading font-bold text-white">Change Password</h2>
+                <h2 className="text-xl font-heading font-bold text-white">
+                  Change Password
+                </h2>
               </div>
-              
+
               <div className="space-y-4 max-w-md mb-6">
                 <div>
-                  <label className="block text-xs font-mono text-dim uppercase tracking-wider mb-2">Current Password</label>
+                  <label className="block text-xs font-mono text-dim uppercase tracking-wider mb-2">
+                    Current Password
+                  </label>
                   <input
                     type="password"
                     value={currentPassword}
@@ -152,7 +204,9 @@ const SettingsPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-dim uppercase tracking-wider mb-2">New Password</label>
+                  <label className="block text-xs font-mono text-dim uppercase tracking-wider mb-2">
+                    New Password
+                  </label>
                   <input
                     type="password"
                     value={newPassword}
@@ -162,7 +216,9 @@ const SettingsPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-dim uppercase tracking-wider mb-2">Confirm New Password</label>
+                  <label className="block text-xs font-mono text-dim uppercase tracking-wider mb-2">
+                    Confirm New Password
+                  </label>
                   <input
                     type="password"
                     value={confirmPassword}
@@ -173,7 +229,7 @@ const SettingsPage = () => {
                 </div>
               </div>
               <div className="flex justify-start">
-                <button 
+                <button
                   onClick={handleChangePassword}
                   disabled={loadingPassword}
                   className="px-6 py-2.5 rounded-xl bg-violet/10 text-violet border border-violet/30 hover:bg-violet/20 transition-colors font-mono text-sm font-bold flex items-center gap-2 disabled:opacity-50"
@@ -185,17 +241,75 @@ const SettingsPage = () => {
             </section>
 
             {/* Danger Zone Section */}
+            <section className="glass-panel p-8 rounded-3xl border border-white/5">
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
+                <Accessibility className="text-cyan" size={24} />
+                <h2 className="text-xl font-heading font-bold text-white">
+                  Accessibility & Comfort
+                </h2>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl border border-white/10 bg-[#0F0F16] flex items-start justify-between gap-6">
+                  <div>
+                    <p className="text-sm text-white font-semibold flex items-center gap-2">
+                      <MousePointer2 size={16} className="text-cyan" /> Custom
+                      Cursor
+                    </p>
+                    <p className="text-xs text-dim mt-1 font-mono leading-relaxed">
+                      Disable if you prefer native browser interaction behavior.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCursorToggle}
+                    className={`px-4 py-2 rounded-xl text-xs font-mono font-bold border transition-colors ${
+                      customCursorEnabled
+                        ? "bg-cyan/10 text-cyan border-cyan/30 hover:bg-cyan/20"
+                        : "bg-white/5 text-dim border-white/10 hover:text-white"
+                    }`}
+                  >
+                    {customCursorEnabled ? "ON" : "OFF"}
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-white/10 bg-[#0F0F16] flex items-start justify-between gap-6">
+                  <div>
+                    <p className="text-sm text-white font-semibold flex items-center gap-2">
+                      <Waves size={16} className="text-violet" /> Reduced Motion
+                    </p>
+                    <p className="text-xs text-dim mt-1 font-mono leading-relaxed">
+                      Minimize animation intensity for focus and visual comfort.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleMotionToggle}
+                    className={`px-4 py-2 rounded-xl text-xs font-mono font-bold border transition-colors ${
+                      reduceMotion
+                        ? "bg-violet/10 text-violet border-violet/30 hover:bg-violet/20"
+                        : "bg-white/5 text-dim border-white/10 hover:text-white"
+                    }`}
+                  >
+                    {reduceMotion ? "ON" : "OFF"}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* Danger Zone Section */}
             <section className="glass-panel border-red-500/20 bg-red-500/5 p-8 rounded-3xl">
               <div className="flex items-center gap-3 mb-4">
                 <AlertTriangle className="text-red-400" size={24} />
-                <h2 className="text-xl font-heading font-bold text-white">Danger Zone</h2>
+                <h2 className="text-xl font-heading font-bold text-white">
+                  Danger Zone
+                </h2>
               </div>
               <p className="text-sm text-dim mb-6">
-                Once you delete your account, there is no going back. Please be certain.
+                Once you delete your account, there is no going back. Please be
+                certain.
               </p>
-              
+
               {!showDeleteConfirm ? (
-                <button 
+                <button
                   onClick={() => setShowDeleteConfirm(true)}
                   className="px-6 py-2.5 rounded-xl border border-red-500/50 text-red-400 hover:bg-red-500/10 transition-colors font-mono text-sm font-bold flex items-center gap-2"
                 >
@@ -205,16 +319,17 @@ const SettingsPage = () => {
               ) : (
                 <div className="p-4 rounded-xl border border-red-500/50 bg-black/40">
                   <p className="text-sm text-white mb-4">
-                    Are you absolutely sure? This will permanently delete your account, projects, datasets, and deployed models.
+                    Are you absolutely sure? This will permanently delete your
+                    account, projects, datasets, and deployed models.
                   </p>
                   <div className="flex gap-3">
-                    <button 
+                    <button
                       onClick={() => setShowDeleteConfirm(false)}
                       className="px-4 py-2 rounded-xl text-dim hover:text-white hover:bg-white/5 transition-colors font-mono text-sm"
                     >
                       Cancel
                     </button>
-                    <button 
+                    <button
                       onClick={handleDeleteAccount}
                       disabled={loadingDelete}
                       className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition-colors font-mono text-sm font-bold disabled:opacity-50"
@@ -225,7 +340,6 @@ const SettingsPage = () => {
                 </div>
               )}
             </section>
-
           </div>
         </div>
       </main>

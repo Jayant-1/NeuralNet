@@ -15,30 +15,23 @@ export default function Navbar() {
   }, []);
 
   const links = [
-    { label: "Builder", href: "#workspace" },
-    { label: "Datasets", href: "#datasets" },
-    { label: "Training", href: "#training" },
-    { label: "Deploy", href: "#deploy" },
+    { label: "Act I: Build", href: "#workspace" },
+    { label: "Act II: Data", href: "#datasets" },
+    { label: "Act III: Train", href: "#training" },
+    { label: "Act IV: Release", href: "#deploy" },
   ];
 
   return (
     <nav
       ref={navRef}
       className={`fixed top-0 left-0 w-full z-[9000] transition-all duration-500 border-0 ${
-        scrolled
-          ? "glass-panel py-3"
-          : "bg-transparent py-5"
+        scrolled ? "glass-panel py-3" : "bg-transparent py-5"
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" data-hover>
-          <BrandLogo
-            textSize="text-lg"
-            
-            
-            withHoverSpin
-          />
+          <BrandLogo textSize="text-lg" withHoverSpin />
         </Link>
 
         {/* Desktop links */}
@@ -58,7 +51,7 @@ export default function Navbar() {
             data-hover="launch"
             className="ml-4 px-5 py-2 rounded-full border border-acid/30 text-acid font-mono text-sm hover:bg-acid/10 transition-all duration-300"
           >
-            Open Dashboard
+            Enter Command Center
           </Link>
         </div>
 
@@ -92,7 +85,7 @@ export default function Navbar() {
             onClick={() => setOpen(false)}
             className="mt-2 px-5 py-2 rounded-full border border-acid/30 text-acid font-mono text-sm text-center hover:bg-acid/10 transition-all"
           >
-            Open Dashboard
+            Enter Command Center
           </Link>
         </div>
       )}

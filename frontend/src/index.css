@@ -1,21 +1,23 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design System: Electric Synapse ── */
+/* ── Design System: Cyber Lab Editorial ── */
 :root {
-  --c-base: #0b0b0f;
-  --c-base-light: #12121a;
-  --c-base-lighter: #1a1a28;
-  --c-border: #2a2a3a;
-  --c-cyan: #00f2ff;
-  --c-violet: #8a2be2;
-  --c-acid: #00ff41;
-  --c-action: #ff6b00;
-  --c-text: #e0e0e8;
-  --c-dim: #6b6b80;
+  --c-base: #06070b;
+  --c-base-light: #10131c;
+  --c-base-lighter: #171c27;
+  --c-border: #2b3447;
+  --c-cyan: #0ce9ff;
+  --c-violet: #6874ff;
+  --c-acid: #8dff2b;
+  --c-action: #ff7a1a;
+  --c-text: #f1f5ff;
+  --c-dim: #97a4c0;
   --font-heading: "Space Grotesk", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-mono: "IBM Plex Mono", monospace;
 }
 
 /* ── Base Reset ── */
@@ -34,11 +36,22 @@ html {
 }
 
 body {
-  background: var(--c-base);
+  background:
+    radial-gradient(
+      circle at 10% 10%,
+      rgba(12, 233, 255, 0.08),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 85% 0%,
+      rgba(104, 116, 255, 0.1),
+      transparent 34%
+    ),
+    linear-gradient(180deg, #05060a 0%, #070912 100%);
   color: var(--c-text);
   font-family: var(--font-heading);
   overflow-x: hidden;
-  cursor: none;
+  cursor: auto;
 }
 
 a,
@@ -46,6 +59,18 @@ button,
 input,
 textarea,
 select {
+  cursor: auto;
+}
+
+body.use-custom-cursor {
+  cursor: none;
+}
+
+body.use-custom-cursor a,
+body.use-custom-cursor button,
+body.use-custom-cursor input,
+body.use-custom-cursor textarea,
+body.use-custom-cursor select {
   cursor: none;
 }
 
@@ -82,7 +107,7 @@ button::after {
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  opacity: 0.035;
+  opacity: 0.02;
 }
 .grain-overlay::before {
   content: "";
@@ -111,9 +136,9 @@ button::after {
 /* ── Gradient Text ── */
 .gradient-text {
   background: linear-gradient(
-    135deg,
+    115deg,
     var(--c-cyan) 0%,
-    var(--c-violet) 50%,
+    #7fa0ff 45%,
     var(--c-acid) 100%
   );
   background-size: 200% 200%;
@@ -156,10 +181,13 @@ button::after {
 
 /* ── Glass Panel ── */
 .glass-panel {
-  background: rgba(18, 18, 26, 0.6);
-  /* border: 1px solid var(--c-border); */
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: linear-gradient(
+    160deg,
+    rgba(17, 21, 31, 0.78) 0%,
+    rgba(10, 12, 20, 0.66) 100%
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 /* ── Breathing Animation ── */
@@ -202,16 +230,16 @@ button::after {
 
 /* ── Section spacing ── */
 .section-padding {
-  padding: 120px 24px;
+  padding: 140px 24px;
 }
 @media (min-width: 768px) {
   .section-padding {
-    padding: 160px 48px;
+    padding: 190px 52px;
   }
 }
 @media (min-width: 1280px) {
   .section-padding {
-    padding: 200px 80px;
+    padding: 230px 88px;
   }
 }
 
@@ -231,7 +259,7 @@ button::after {
     height 0.3s ease,
     border-color 0.3s ease,
     background 0.3s ease;
-  mix-blend-mode: difference;
+  mix-blend-mode: screen;
 }
 .custom-cursor.hovering {
   width: 48px;
@@ -254,9 +282,22 @@ button::after {
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.07;
+  opacity: 0.055;
   filter: blur(80px);
   transition: background 0.8s ease;
+}
+
+body.pref-reduced-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.pref-reduced-motion) {
+    scroll-behavior: auto;
+  }
 }
 
 /* ── CONSOLIDATED OLD STYLES (RESTYLED TO NEURALNET) ── */

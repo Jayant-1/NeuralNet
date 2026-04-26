@@ -232,34 +232,34 @@ const ProjectWorkspace = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#0B0B0F] overflow-hidden text-[#E0E0E8]">
+    <div className="flex flex-col h-screen w-full bg-[#06070B] overflow-hidden text-[#E0E0E8]">
       <WorkspaceNavbar
         projectName={activeProject?.name || "Loading..."}
         onBack={() => navigate("/dashboard")}
         activeTab={activeTab}
       />
 
-      {/* Tab bar */}
-      <div className="shrink-0 bg-[#12121A] border-b border-white/5 px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shadow-sm z-40">
-        <div className="flex space-x-2 w-max mx-auto md:mx-0">
+      {/* Tab bar — Editorial Cyber Lab style */}
+      <div className="shrink-0 bg-[#0B0B10] border-b border-white/5 px-6 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar z-40">
+        <div className="flex space-x-1 w-max mx-auto md:mx-0">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 font-mono text-sm ${
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg transition-all duration-300 font-mono text-xs font-semibold tracking-wider uppercase ${
                   isActive
-                    ? "bg-cyan/10 text-cyan border border-cyan/30 shadow-[0_0_15px_rgba(0,242,255,0.1)]"
-                    : "text-dim hover:text-white hover:bg-white/5 border border-transparent"
+                    ? "bg-[#0A6F7A] text-cyan border border-cyan/40 shadow-[0_0_20px_rgba(12,233,255,0.15)]"
+                    : "text-dim hover:text-white hover:bg-white/8 border border-transparent"
                 }`}
                 onClick={() => setActiveTab(tab.id)}
               >
                 <Icon
-                  size={16}
+                  size={15}
                   className={isActive ? "text-cyan" : "text-dim"}
                 />
-                <span>{tab.label}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
               </button>
             );
           })}
@@ -267,7 +267,7 @@ const ProjectWorkspace = () => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0B0B0F] via-[#0B0B0F] to-[#0B0B0F]">
+      <div className="flex-1 flex flex-col relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(12,233,255,0.05),transparent),radial-gradient(circle_at_bottom_right,rgba(104,116,255,0.06),transparent),linear-gradient(to_bottom,#06070B,#08091a)]">
         <div className="grain-overlay pointer-events-none" />
         {renderTabContent()}
       </div>

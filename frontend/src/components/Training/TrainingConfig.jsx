@@ -1,16 +1,32 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useTrainingStore, useDatasetStore } from '../../store/store';
-import { validateGraph, graphToJson } from '../../utils/graphToJson';
-import { trainingApi } from '../../services/api';
 import {
-  Play, Loader2, AlertTriangle, Cpu, Gauge, Timer, Layers,
-  StopCircle, Database, CheckCircle2, TrendingDown, TrendingUp
-} from 'lucide-react';
+  AlertTriangle,
+  CheckCircle2,
+  Cpu,
+  Database,
+  Gauge,
+  Layers,
+  Loader2,
+  Play,
+  StopCircle,
+  Timer,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer
-} from 'recharts';
-import toast from 'react-hot-toast';
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { trainingApi } from "../../services/api";
+import { useDatasetStore, useTrainingStore } from "../../store/store";
+import { graphToJson, validateGraph } from "../../utils/graphToJson";
 
 // ─── Live Chart (per-batch updates) ───────────────────────────────
 const LiveChart = ({ batchMetrics, epochMetrics, totalEpochs, isTraining }) => {
@@ -20,18 +36,72 @@ const LiveChart = ({ batchMetrics, epochMetrics, totalEpochs, isTraining }) => {
     if (!isTraining) return null;
     return (
       <div className="glass-panel p-6 rounded-2xl border border-white/10 animate-fade-in-up">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00f2ff', boxShadow: '0 0 8px #00f2ff', display: 'inline-block', animation: 'pulse 1s infinite' }} />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 16,
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: "#00f2ff",
+              boxShadow: "0 0 8px #00f2ff",
+              display: "inline-block",
+              animation: "pulse 1s infinite",
+            }}
+          />
           <span className="text-white font-bold text-base">Live Training</span>
-          <span className="text-dim font-mono text-xs" style={{ marginLeft: 'auto' }}>Epoch 0 / {totalEpochs}</span>
+          <span
+            className="text-dim font-mono text-xs"
+            style={{ marginLeft: "auto" }}
+          >
+            Epoch 0 / {totalEpochs}
+          </span>
         </div>
-        <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, marginBottom: 24 }}>
-          <div style={{ height: '100%', width: '2%', background: 'linear-gradient(90deg,#6366f1,#00f2ff)', borderRadius: 2 }} />
+        <div
+          style={{
+            height: 4,
+            background: "rgba(255,255,255,0.08)",
+            borderRadius: 2,
+            marginBottom: 24,
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: "2%",
+              background: "linear-gradient(90deg,#6366f1,#00f2ff)",
+              borderRadius: 2,
+            }}
+          />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, padding: '32px 0', color: '#6b7280' }}>
-          <Loader2 size={28} className="animate-spin" style={{ color: '#00f2ff' }} />
-          <span className="font-mono text-sm">Compiling model and loading data...</span>
-          <span className="font-mono text-xs">Charts will appear after the first batch</span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: 12,
+            padding: "32px 0",
+            color: "#6b7280",
+          }}
+        >
+          <Loader2
+            size={28}
+            className="animate-spin"
+            style={{ color: "#00f2ff" }}
+          />
+          <span className="font-mono text-sm">
+            Compiling model and loading data...
+          </span>
+          <span className="font-mono text-xs">
+            Charts will appear after the first batch
+          </span>
         </div>
       </div>
     );
@@ -39,75 +109,254 @@ const LiveChart = ({ batchMetrics, epochMetrics, totalEpochs, isTraining }) => {
 
   // Build chart data: per-batch loss/acc, val metrics only at epoch boundaries
   const MAX_PTS = 300;
-  const raw = batchMetrics.length > 0 ? batchMetrics : epochMetrics.map(m => ({ batch: m.epoch, loss: m.train_loss, acc: m.train_acc }));
+  const raw =
+    batchMetrics.length > 0
+      ? batchMetrics
+      : epochMetrics.map((m) => ({
+          batch: m.epoch,
+          loss: m.train_loss,
+          acc: m.train_acc,
+        }));
   const step = raw.length > MAX_PTS ? Math.ceil(raw.length / MAX_PTS) : 1;
-  const chartData = raw.filter((_, i) => i % step === 0 || i === raw.length - 1);
+  const chartData = raw.filter(
+    (_, i) => i % step === 0 || i === raw.length - 1,
+  );
 
   const lastBatch = raw[raw.length - 1] || {};
   const lastEpoch = epochMetrics[epochMetrics.length - 1];
   const epochsDone = epochMetrics.length;
   const progress = Math.round((epochsDone / totalEpochs) * 100);
 
-  const tooltipStyle = { background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12, fontFamily: 'monospace' };
-  const axisStyle = { fontSize: 10, fill: '#6b7280', fontFamily: 'monospace' };
+  const tooltipStyle = {
+    background: "#1a1a2e",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    fontSize: 12,
+    fontFamily: "monospace",
+  };
+  const axisStyle = { fontSize: 10, fill: "#6b7280", fontFamily: "monospace" };
 
   return (
     <div className="glass-panel p-6 rounded-2xl border border-white/10 animate-fade-in-up">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h3 className="text-base font-bold text-white" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00f2ff', display: 'inline-block', boxShadow: '0 0 8px #00f2ff', animation: 'pulse 1s infinite' }} />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+        }}
+      >
+        <h3
+          className="text-base font-bold text-white"
+          style={{ display: "flex", alignItems: "center", gap: 8 }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: "#00f2ff",
+              display: "inline-block",
+              boxShadow: "0 0 8px #00f2ff",
+              animation: "pulse 1s infinite",
+            }}
+          />
           Live Training
         </h3>
-        <span className="text-xs font-mono text-dim">Epoch {epochsDone} / {totalEpochs} — Batch {raw.length}</span>
+        <span className="text-xs font-mono text-dim">
+          Epoch {epochsDone} / {totalEpochs} — Batch {raw.length}
+        </span>
       </div>
 
       {/* Progress bar */}
-      <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, marginBottom: 20, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg, #6366f1, #00f2ff)', borderRadius: 2, transition: 'width 0.5s ease' }} />
+      <div
+        style={{
+          height: 4,
+          background: "rgba(255,255,255,0.08)",
+          borderRadius: 2,
+          marginBottom: 20,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            width: `${progress}%`,
+            background: "linear-gradient(90deg, #6366f1, #00f2ff)",
+            borderRadius: 2,
+            transition: "width 0.5s ease",
+          }}
+        />
       </div>
 
       {/* Metric cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 10,
+          marginBottom: 20,
+        }}
+      >
         {[
-          { label: 'Batch Loss',  value: lastBatch.loss?.toFixed(4),                             color: '#f87171' },
-          { label: 'Val Loss',    value: lastEpoch?.val_loss?.toFixed(4) ?? '—',                 color: '#fb923c' },
-          { label: 'Batch Acc',   value: lastBatch.acc != null ? `${(lastBatch.acc*100).toFixed(1)}%` : '—', color: '#34d399' },
-          { label: 'Val Acc',     value: lastEpoch?.val_acc != null ? `${(lastEpoch.val_acc*100).toFixed(1)}%` : '—', color: '#00f2ff' },
-        ].map(m => (
-          <div key={m.label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', textAlign: 'center' }}>
-            <div style={{ fontSize: 10, color: '#6b7280', fontFamily: 'monospace', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{m.label}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: m.color, fontFamily: 'monospace' }}>{m.value ?? '—'}</div>
+          {
+            label: "Batch Loss",
+            value: lastBatch.loss?.toFixed(4),
+            color: "#f87171",
+          },
+          {
+            label: "Val Loss",
+            value: lastEpoch?.val_loss?.toFixed(4) ?? "—",
+            color: "#fb923c",
+          },
+          {
+            label: "Batch Acc",
+            value:
+              lastBatch.acc != null
+                ? `${(lastBatch.acc * 100).toFixed(1)}%`
+                : "—",
+            color: "#34d399",
+          },
+          {
+            label: "Val Acc",
+            value:
+              lastEpoch?.val_acc != null
+                ? `${(lastEpoch.val_acc * 100).toFixed(1)}%`
+                : "—",
+            color: "#00f2ff",
+          },
+        ].map((m) => (
+          <div
+            key={m.label}
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 10,
+              padding: "10px 12px",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                color: "#6b7280",
+                fontFamily: "monospace",
+                marginBottom: 4,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              {m.label}
+            </div>
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: m.color,
+                fontFamily: "monospace",
+              }}
+            >
+              {m.value ?? "—"}
+            </div>
           </div>
         ))}
       </div>
 
       {/* Loss chart — per batch */}
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Loss (per batch)</div>
+        <div
+          style={{
+            fontSize: 11,
+            color: "#6b7280",
+            fontFamily: "monospace",
+            marginBottom: 8,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+          }}
+        >
+          Loss (per batch)
+        </div>
         <ResponsiveContainer width="100%" height={140}>
-          <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="batch" tick={axisStyle} label={{ value: 'batch', position: 'insideBottomRight', fill: '#4b5563', fontSize: 10 }} />
+          <LineChart
+            data={chartData}
+            margin={{ top: 4, right: 8, bottom: 0, left: -10 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(255,255,255,0.05)"
+            />
+            <XAxis
+              dataKey="batch"
+              tick={axisStyle}
+              label={{
+                value: "batch",
+                position: "insideBottomRight",
+                fill: "#4b5563",
+                fontSize: 10,
+              }}
+            />
             <YAxis tick={axisStyle} width={40} />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#9ca3af' }} labelFormatter={v => `Batch ${v}`} />
-            <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'monospace' }} />
-            <Line type="monotone" dataKey="loss" name="Loss" stroke="#f87171" strokeWidth={2} dot={false} isAnimationActive={false} />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              labelStyle={{ color: "#9ca3af" }}
+              labelFormatter={(v) => `Batch ${v}`}
+            />
+            <Legend wrapperStyle={{ fontSize: 11, fontFamily: "monospace" }} />
+            <Line
+              type="monotone"
+              dataKey="loss"
+              name="Loss"
+              stroke="#f87171"
+              strokeWidth={2}
+              dot={false}
+              isAnimationActive={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* Accuracy chart — per batch */}
       <div>
-        <div style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Accuracy (per batch)</div>
+        <div
+          style={{
+            fontSize: 11,
+            color: "#6b7280",
+            fontFamily: "monospace",
+            marginBottom: 8,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+          }}
+        >
+          Accuracy (per batch)
+        </div>
         <ResponsiveContainer width="100%" height={140}>
-          <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+          <LineChart
+            data={chartData}
+            margin={{ top: 4, right: 8, bottom: 0, left: -10 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(255,255,255,0.05)"
+            />
             <XAxis dataKey="batch" tick={axisStyle} />
             <YAxis tick={axisStyle} width={40} domain={[0, 1]} />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#9ca3af' }} labelFormatter={v => `Batch ${v}`} formatter={v => `${(v * 100).toFixed(1)}%`} />
-            <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'monospace' }} />
-            <Line type="monotone" dataKey="acc" name="Accuracy" stroke="#34d399" strokeWidth={2} dot={false} isAnimationActive={false} />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              labelStyle={{ color: "#9ca3af" }}
+              labelFormatter={(v) => `Batch ${v}`}
+              formatter={(v) => `${(v * 100).toFixed(1)}%`}
+            />
+            <Legend wrapperStyle={{ fontSize: 11, fontFamily: "monospace" }} />
+            <Line
+              type="monotone"
+              dataKey="acc"
+              name="Accuracy"
+              stroke="#34d399"
+              strokeWidth={2}
+              dot={false}
+              isAnimationActive={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -117,12 +366,21 @@ const LiveChart = ({ batchMetrics, epochMetrics, totalEpochs, isTraining }) => {
 
 // ─── Main Component ───────────────────────────────────────────────
 const TrainingConfig = ({ projectId, nodes, edges }) => {
-  const { status, setStatus, metrics, setMetrics, setActiveJob, addMetricEpoch, setCompiledCode, setModelId } = useTrainingStore();
+  const {
+    status,
+    setStatus,
+    metrics,
+    setMetrics,
+    setActiveJob,
+    addMetricEpoch,
+    setCompiledCode,
+    setModelId,
+  } = useTrainingStore();
   const activeDataset = useDatasetStore((s) => s.activeDataset);
   const [batchMetrics, setBatchMetrics] = useState([]);
   const [config, setConfig] = useState({
-    optimizer: 'adam',
-    loss: 'categorical_crossentropy',
+    optimizer: "adam",
+    loss: "categorical_crossentropy",
     epochs: 10,
     batch_size: 32,
     learning_rate: 0.001,
@@ -134,25 +392,31 @@ const TrainingConfig = ({ projectId, nodes, edges }) => {
   const batchMetricsRef = useRef([]);
 
   useEffect(() => {
-    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, []);
 
-  const handleChange = (key, value) => setConfig(prev => ({ ...prev, [key]: value }));
+  const handleChange = (key, value) =>
+    setConfig((prev) => ({ ...prev, [key]: value }));
 
   const stopPolling = () => {
-    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
   };
 
   const handleStartTraining = async () => {
     const validation = validateGraph(nodes, edges);
     if (!validation.valid) {
       setErrors(validation.errors);
-      toast.error('Fix graph errors before training');
+      toast.error("Fix graph errors before training");
       return;
     }
     setErrors([]);
     setTraining(true);
-    setStatus('running');
+    setStatus("running");
     setMetrics([]);
     setBatchMetrics([]);
     batchMetricsRef.current = [];
@@ -160,8 +424,16 @@ const TrainingConfig = ({ projectId, nodes, edges }) => {
     try {
       const graphJson = graphToJson(nodes, edges);
       const graphData = {
-        layers: graphJson.layers.map(l => ({ id: l.id, type: l.type, label: l.label, params: l.params })),
-        connections: graphJson.connections.map(c => ({ source: c.from, target: c.to })),
+        layers: graphJson.layers.map((l) => ({
+          id: l.id,
+          type: l.type,
+          label: l.label,
+          params: l.params,
+        })),
+        connections: graphJson.connections.map((c) => ({
+          source: c.from,
+          target: c.to,
+        })),
       };
 
       const { data } = await trainingApi.start({
@@ -176,83 +448,128 @@ const TrainingConfig = ({ projectId, nodes, edges }) => {
       });
 
       const jobId = data.job_id;
-      setActiveJob({ id: jobId, config, status: 'running', started_at: new Date().toISOString() });
-      toast.success('Training started!');
+      setActiveJob({
+        id: jobId,
+        config,
+        status: "running",
+        started_at: new Date().toISOString(),
+      });
+      toast.success("Training started!");
 
       let previousMetricsCount = 0;
       pollingRef.current = setInterval(async () => {
         try {
           const { data: jobData } = await trainingApi.getMetrics(jobId);
-          if (jobData.metrics && jobData.metrics.length > previousMetricsCount) {
+          if (
+            jobData.metrics &&
+            jobData.metrics.length > previousMetricsCount
+          ) {
             const newMetrics = jobData.metrics.slice(previousMetricsCount);
-            newMetrics.forEach(m => addMetricEpoch(m));
+            newMetrics.forEach((m) => addMetricEpoch(m));
             previousMetricsCount = jobData.metrics.length;
           }
           // Update batch metrics
-          if (jobData.batch_metrics && jobData.batch_metrics.length > batchMetricsRef.current.length) {
+          if (
+            jobData.batch_metrics &&
+            jobData.batch_metrics.length > batchMetricsRef.current.length
+          ) {
             batchMetricsRef.current = jobData.batch_metrics;
             setBatchMetrics([...jobData.batch_metrics]);
           }
-          if (jobData.status === 'completed') {
+          if (jobData.status === "completed") {
             stopPolling();
-            setStatus('completed');
+            setStatus("completed");
             setTraining(false);
             if (jobData.compiled_code) setCompiledCode(jobData.compiled_code);
             if (jobData.model_id) setModelId(jobData.model_id);
-            toast.success('Training completed! 🎉 Check the Results tab.');
-          } else if (jobData.status === 'failed') {
+            toast.success("Training completed! 🎉 Check the Results tab.");
+          } else if (jobData.status === "failed") {
             stopPolling();
-            setStatus('failed');
+            setStatus("failed");
             setTraining(false);
-            toast.error(jobData.error_message || 'Training failed');
+            toast.error(jobData.error_message || "Training failed");
           }
         } catch (err) {
-          console.error('Polling error:', err);
+          console.error("Polling error:", err);
         }
       }, 1000);
-
     } catch (err) {
-      setStatus('failed');
+      setStatus("failed");
       setTraining(false);
-      toast.error(err.response?.data?.detail || 'Failed to start training');
+      toast.error(err.response?.data?.detail || "Failed to start training");
     }
   };
 
   const handleStopTraining = () => {
     stopPolling();
-    setStatus('completed');
+    setStatus("completed");
     setTraining(false);
-    toast('Training stopped');
+    toast("Training stopped");
   };
 
   return (
     <div className="max-w-4xl mx-auto w-full space-y-6">
       <div className="animate-fade-in-up">
-        <h2 className="text-2xl font-heading font-bold text-white mb-2">Training Configuration</h2>
-        <p className="text-dim text-sm">Configure hyperparameters and start training your model</p>
+        <h2 className="text-4xl font-heading font-black text-white mb-2 tracking-tight">
+          TRAIN
+        </h2>
+        <div className="flex items-end gap-4 mb-6">
+          <div className="flex-1">
+            <p className="text-dim text-sm font-mono tracking-wider uppercase mb-2">
+              Model Training Suite
+            </p>
+            <p className="text-white text-lg leading-relaxed max-w-xl">
+              Configure hyperparameters, monitor live metrics, and optimize your
+              neural network for peak performance.
+            </p>
+          </div>
+          <div className="px-4 py-2 rounded-lg bg-violet/20 border border-violet/50 font-mono text-xs text-violet font-bold tracking-wider">
+            ADAPTIVE LEARNING
+          </div>
+        </div>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up">
         <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center text-center">
-          <div className="w-10 h-10 rounded-xl bg-violet/10 text-violet flex items-center justify-center mb-2"><Layers size={20} /></div>
-          <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">Layers</div>
+          <div className="w-10 h-10 rounded-xl bg-violet/10 text-violet flex items-center justify-center mb-2">
+            <Layers size={20} />
+          </div>
+          <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">
+            Layers
+          </div>
           <div className="text-xl font-bold text-white">{nodes.length}</div>
         </div>
         <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center text-center">
-          <div className="w-10 h-10 rounded-xl bg-orange-400/10 text-orange-400 flex items-center justify-center mb-2"><Timer size={20} /></div>
-          <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">Epochs</div>
+          <div className="w-10 h-10 rounded-xl bg-orange-400/10 text-orange-400 flex items-center justify-center mb-2">
+            <Timer size={20} />
+          </div>
+          <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">
+            Epochs
+          </div>
           <div className="text-xl font-bold text-white">{config.epochs}</div>
         </div>
         <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center text-center">
-          <div className="w-10 h-10 rounded-xl bg-acid/10 text-acid flex items-center justify-center mb-2"><Gauge size={20} /></div>
-          <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">LR</div>
-          <div className="text-xl font-bold text-white">{config.learning_rate}</div>
+          <div className="w-10 h-10 rounded-xl bg-acid/10 text-acid flex items-center justify-center mb-2">
+            <Gauge size={20} />
+          </div>
+          <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">
+            LR
+          </div>
+          <div className="text-xl font-bold text-white">
+            {config.learning_rate}
+          </div>
         </div>
         <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center text-center">
-          <div className="w-10 h-10 rounded-xl bg-cyan/10 text-cyan flex items-center justify-center mb-2"><Database size={20} /></div>
-          <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">Dataset</div>
-          <div className="text-sm font-bold text-white truncate w-full px-2">{activeDataset?.name || 'Synthetic'}</div>
+          <div className="w-10 h-10 rounded-xl bg-cyan/10 text-cyan flex items-center justify-center mb-2">
+            <Database size={20} />
+          </div>
+          <div className="text-xs text-dim font-mono uppercase tracking-wider mb-1">
+            Dataset
+          </div>
+          <div className="text-sm font-bold text-white truncate w-full px-2">
+            {activeDataset?.name || "Synthetic"}
+          </div>
         </div>
       </div>
 
@@ -271,20 +588,31 @@ const TrainingConfig = ({ projectId, nodes, edges }) => {
         <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center gap-3 animate-fade-in-up">
           <CheckCircle2 size={18} className="text-green-400 shrink-0" />
           <span className="text-sm text-green-100 font-mono">
-            Training with <strong className="text-green-400">{activeDataset.name}</strong> — {activeDataset.input_shape}, {activeDataset.num_classes} classes, {activeDataset.num_train?.toLocaleString()} samples
+            Training with{" "}
+            <strong className="text-green-400">{activeDataset.name}</strong> —{" "}
+            {activeDataset.input_shape}, {activeDataset.num_classes} classes,{" "}
+            {activeDataset.num_train?.toLocaleString()} samples
           </span>
         </div>
       )}
       {!activeDataset && (
         <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center gap-3 animate-fade-in-up">
           <AlertTriangle size={18} className="text-orange-400 shrink-0" />
-          <span className="text-sm text-orange-200 font-mono">No dataset loaded — will use synthetic random data.</span>
+          <span className="text-sm text-orange-200 font-mono">
+            No dataset loaded — will use synthetic random data.
+          </span>
         </div>
       )}
       {errors.length > 0 && (
         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 animate-fade-in-up">
           <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
-          <div className="text-sm text-red-200 font-mono">{errors.map((err, i) => <p key={i} className="mb-1 last:mb-0">{err}</p>)}</div>
+          <div className="text-sm text-red-200 font-mono">
+            {errors.map((err, i) => (
+              <p key={i} className="mb-1 last:mb-0">
+                {err}
+              </p>
+            ))}
+          </div>
         </div>
       )}
 
@@ -293,8 +621,14 @@ const TrainingConfig = ({ projectId, nodes, edges }) => {
         <h3 className="text-lg font-bold text-white mb-6">Hyperparameters</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1.5">
-            <label className="block text-xs font-mono text-dim">Optimizer</label>
-            <select className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all" value={config.optimizer} onChange={e => handleChange('optimizer', e.target.value)}>
+            <label className="block text-xs font-mono text-dim">
+              Optimizer
+            </label>
+            <select
+              className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+              value={config.optimizer}
+              onChange={(e) => handleChange("optimizer", e.target.value)}
+            >
               <option value="adam">Adam</option>
               <option value="sgd">SGD</option>
               <option value="rmsprop">RMSprop</option>
@@ -302,9 +636,17 @@ const TrainingConfig = ({ projectId, nodes, edges }) => {
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-mono text-dim">Loss Function</label>
-            <select className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all" value={config.loss} onChange={e => handleChange('loss', e.target.value)}>
-              <option value="categorical_crossentropy">Categorical Crossentropy</option>
+            <label className="block text-xs font-mono text-dim">
+              Loss Function
+            </label>
+            <select
+              className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+              value={config.loss}
+              onChange={(e) => handleChange("loss", e.target.value)}
+            >
+              <option value="categorical_crossentropy">
+                Categorical Crossentropy
+              </option>
               <option value="binary_crossentropy">Binary Crossentropy</option>
               <option value="mse">Mean Squared Error</option>
               <option value="mae">Mean Absolute Error</option>
@@ -312,11 +654,28 @@ const TrainingConfig = ({ projectId, nodes, edges }) => {
           </div>
           <div className="space-y-1.5">
             <label className="block text-xs font-mono text-dim">Epochs</label>
-            <input type="number" className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all" value={config.epochs} onChange={e => handleChange('epochs', parseInt(e.target.value) || 1)} min={1} max={1000} />
+            <input
+              type="number"
+              className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+              value={config.epochs}
+              onChange={(e) =>
+                handleChange("epochs", parseInt(e.target.value) || 1)
+              }
+              min={1}
+              max={1000}
+            />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-mono text-dim">Batch Size</label>
-            <select className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all" value={config.batch_size} onChange={e => handleChange('batch_size', parseInt(e.target.value))}>
+            <label className="block text-xs font-mono text-dim">
+              Batch Size
+            </label>
+            <select
+              className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+              value={config.batch_size}
+              onChange={(e) =>
+                handleChange("batch_size", parseInt(e.target.value))
+              }
+            >
               <option value="16">16</option>
               <option value="32">32</option>
               <option value="64">64</option>
@@ -325,12 +684,41 @@ const TrainingConfig = ({ projectId, nodes, edges }) => {
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-mono text-dim">Learning Rate</label>
-            <input type="number" className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all" value={config.learning_rate} onChange={e => handleChange('learning_rate', parseFloat(e.target.value) || 0.001)} step={0.0001} min={0.00001} />
+            <label className="block text-xs font-mono text-dim">
+              Learning Rate
+            </label>
+            <input
+              type="number"
+              className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+              value={config.learning_rate}
+              onChange={(e) =>
+                handleChange(
+                  "learning_rate",
+                  parseFloat(e.target.value) || 0.001,
+                )
+              }
+              step={0.0001}
+              min={0.00001}
+            />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-mono text-dim">Validation Split</label>
-            <input type="number" className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all" value={config.validation_split} onChange={e => handleChange('validation_split', parseFloat(e.target.value) || 0.2)} step={0.05} min={0} max={0.5} />
+            <label className="block text-xs font-mono text-dim">
+              Validation Split
+            </label>
+            <input
+              type="number"
+              className="w-full bg-[#12121A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+              value={config.validation_split}
+              onChange={(e) =>
+                handleChange(
+                  "validation_split",
+                  parseFloat(e.target.value) || 0.2,
+                )
+              }
+              step={0.05}
+              min={0}
+              max={0.5}
+            />
           </div>
         </div>
       </div>
@@ -342,9 +730,16 @@ const TrainingConfig = ({ projectId, nodes, edges }) => {
           onClick={handleStartTraining}
           disabled={training}
         >
-          {training
-            ? <><Loader2 size={18} className="animate-spin" /> TRAINING EPOCH {metrics.length}/{config.epochs}...</>
-            : <><Play size={18} /> START TRAINING</>}
+          {training ? (
+            <>
+              <Loader2 size={18} className="animate-spin" /> TRAINING EPOCH{" "}
+              {metrics.length}/{config.epochs}...
+            </>
+          ) : (
+            <>
+              <Play size={18} /> START TRAINING
+            </>
+          )}
         </button>
         {training && (
           <button
@@ -356,13 +751,16 @@ const TrainingConfig = ({ projectId, nodes, edges }) => {
         )}
       </div>
 
-
       {/* Completion banner */}
-      {status === 'completed' && !training && metrics.length > 0 && (
+      {status === "completed" && !training && metrics.length > 0 && (
         <div className="p-4 rounded-xl bg-cyan/10 border border-cyan/20 flex items-center gap-3 animate-fade-in-up">
           <CheckCircle2 size={18} className="text-cyan shrink-0" />
           <span className="text-sm text-cyan font-mono">
-            Training complete — final val_acc: <strong>{((metrics[metrics.length-1]?.val_acc || 0) * 100).toFixed(2)}%</strong>. Check the Results tab for details.
+            Training complete — final val_acc:{" "}
+            <strong>
+              {((metrics[metrics.length - 1]?.val_acc || 0) * 100).toFixed(2)}%
+            </strong>
+            . Check the Results tab for details.
           </span>
         </div>
       )}

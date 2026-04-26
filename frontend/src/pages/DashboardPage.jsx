@@ -1,30 +1,27 @@
 import {
-  Box,
+  Activity,
+  ArrowUpRight,
   ChevronRight,
   Clock,
-  Cpu,
-  FolderOpen,
-  GitBranch,
   Layers,
-  LayoutDashboard,
-  LogOut,
+  LineChart,
   Plus,
-  ScanLine,
   Search,
-  Settings,
+  Sparkles,
+  Target,
   Trash2,
+  Workflow,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import BrandLogo from "../components/BrandLogo";
-import Sidebar from "../components/Sidebar";
 import ProjectWizard from "../components/Project/ProjectWizard";
-import { projectsApi } from "../services/api";
+import Sidebar from "../components/Sidebar";
+import { deploymentApi, projectsApi } from "../services/api";
 import { useAuthStore, useProjectStore } from "../store/store";
 import { TEMPLATES } from "../utils/templates";
 
-const TEMPLATE_ICONS = { mlp: Layers, cnn: ScanLine, rnn: GitBranch };
+const TEMPLATE_ICONS = { mlp: Layers, cnn: Workflow, rnn: Sparkles };
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -35,17 +32,28 @@ const DashboardPage = () => {
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [deployments, setDeployments] = useState([]);
 
   useEffect(() => {
     loadProjects();
+    loadDeployments();
   }, []);
 
   const loadProjects = async () => {
     try {
       const { data } = await projectsApi.list();
       if (data) setProjects(data);
-    } catch (err) {
-      console.log("Using local projects");
+    } catch {
+      console.log("Using local projects cache");
+    }
+  };
+
+  const loadDeployments = async () => {
+    try {
+      const { data } = await deploymentApi.list();
+      setDeployments(data || []);
+    } catch {
+      setDeployments([]);
     }
   };
 
@@ -94,17 +102,23 @@ const DashboardPage = () => {
     setProjectToDelete(null);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("ll_token");
-    localStorage.removeItem("ll_user");
-    useAuthStore.getState().logout();
-    toast.success("Signed out");
-    navigate("/login");
-  };
-
   const filteredProjects = projects.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()),
   );
+
+  const activeDeployments = deployments.filter((d) => d.is_active).length;
+  const totalLayers = projects.reduce(
+    (count, p) => count + (p.graph_data?.nodes?.length || 0),
+    0,
+  );
+
+  const recentProjects = [...projects]
+    .sort(
+      (a, b) =>
+        new Date(b.updated_at || b.created_at).getTime() -
+        new Date(a.updated_at || a.created_at).getTime(),
+    )
+    .slice(0, 4);
 
   const displayName = user?.full_name || user?.email?.split("@")[0] || "User";
 
@@ -119,23 +133,195 @@ const DashboardPage = () => {
 
         <div className="max-w-6xl w-full mx-auto p-8 lg:p-12 z-10">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 animate-fade-in-up">
-            <div className="mb-6 md:mb-0">
-              <h1 className="text-3xl font-heading font-bold text-white mb-2">
-                Welcome back,{" "}
-                <span className="gradient-text">{displayName}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12 animate-fade-in-up">
+            <div className="lg:col-span-8">
+              <p className="font-mono text-[11px] uppercase tracking-[0.34em] text-cyan/70 mb-4">
+                Mission Control
+              </p>
+              <h1 className="text-4xl lg:text-6xl font-heading font-bold text-white leading-[0.92] tracking-tight">
+                Model Operations,
+                <br />
+                <span className="gradient-text">at editorial speed.</span>
               </h1>
-              <p className="text-dim text-sm">
-                Build, train, and deploy neural networks visually.
+              <p className="text-zinc-300 text-sm md:text-zinc-400 mt-5 max-w-2xl font-mono leading-relaxed">
+                {displayName}, this is your live command center. Start a new
+                build, reopen active architecture, and monitor deployment
+                readiness from one surface.
               </p>
             </div>
-            <button
-              className="px-5 py-2.5 rounded-xl bg-cyan/10 text-cyan border border-cyan/30 hover:bg-cyan/20 hover:shadow-[0_0_20px_rgba(0,242,255,0.2)] transition-all font-mono text-sm flex items-center gap-2"
-              onClick={() => setShowModal(true)}
+
+            <div className="lg:col-span-4 flex lg:justify-end items-start">
+              <button
+                className="px-5 py-2.5 rounded-xl bg-cyan/10 text-cyan border border-cyan/30 hover:bg-cyan/20 transition-all font-mono text-sm flex items-center gap-2"
+                onClick={() => setShowModal(true)}
+              >
+                <Plus size={18} />
+                Start New Build
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 animate-fade-in-up"
+            style={{ animationDelay: "0.02s" }}
+          >
+            <div className="glass-panel rounded-2xl border border-white/10 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] uppercase tracking-[0.2em] text-dim font-mono">
+                  Projects
+                </span>
+                <Target size={16} className="text-cyan" />
+              </div>
+              <p className="text-3xl font-heading font-bold text-white">
+                {projects.length}
+              </p>
+              <p className="text-xs text-dim mt-1 font-mono">
+                Design archives in workspace
+              </p>
+            </div>
+
+            <div className="glass-panel rounded-2xl border border-white/10 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] uppercase tracking-[0.2em] text-dim font-mono">
+                  Active Endpoints
+                </span>
+                <Activity size={16} className="text-acid" />
+              </div>
+              <p className="text-3xl font-heading font-bold text-white">
+                {activeDeployments}
+              </p>
+              <p className="text-xs text-dim mt-1 font-mono">
+                Live deployment surfaces
+              </p>
+            </div>
+
+            <div className="glass-panel rounded-2xl border border-white/10 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] uppercase tracking-[0.2em] text-dim font-mono">
+                  Layer Inventory
+                </span>
+                <LineChart size={16} className="text-violet" />
+              </div>
+              <p className="text-3xl font-heading font-bold text-white">
+                {totalLayers}
+              </p>
+              <p className="text-xs text-dim mt-1 font-mono">
+                Nodes across all graphs
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10">
+            <div
+              className="lg:col-span-8 glass-panel rounded-2xl border border-white/10 p-6 animate-fade-in-up"
+              style={{ animationDelay: "0.06s" }}
             >
-              <Plus size={18} />
-              New Project
-            </button>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-heading font-bold text-white">
+                    Continue Editing
+                  </h2>
+                  <p className="text-sm text-dim font-mono mt-1">
+                    Most recently touched projects
+                  </p>
+                </div>
+                <button
+                  className="text-xs font-mono text-cyan hover:text-white transition-colors uppercase tracking-widest"
+                  onClick={() => navigate("/deployments")}
+                >
+                  Deployment View
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {recentProjects.length > 0 ? (
+                  recentProjects.map((project) => {
+                    const nodeCount = project.graph_data?.nodes?.length || 0;
+                    return (
+                      <button
+                        key={project.id}
+                        className="w-full p-4 rounded-xl bg-[#0E0E15] border border-white/5 hover:border-cyan/30 transition-all text-left"
+                        onClick={() => navigate(`/project/${project.id}`)}
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-white font-semibold">
+                              {project.name}
+                            </p>
+                            <p className="text-xs text-dim font-mono mt-1">
+                              Updated{" "}
+                              {new Date(
+                                project.updated_at || project.created_at,
+                              ).toLocaleDateString()}{" "}
+                              • {nodeCount} layers
+                            </p>
+                          </div>
+                          <ArrowUpRight size={16} className="text-cyan" />
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="p-6 rounded-xl border border-dashed border-white/10 text-center">
+                    <p className="text-sm text-dim font-mono">
+                      No projects yet. Start your first architecture draft.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div
+              className="lg:col-span-4 glass-panel rounded-2xl border border-white/10 p-6 animate-fade-in-up"
+              style={{ animationDelay: "0.08s" }}
+            >
+              <h3 className="text-lg font-heading font-bold text-white">
+                Studio Checklist
+              </h3>
+              <p className="text-xs text-dim font-mono mt-1 mb-4">
+                High-velocity handoff flow
+              </p>
+              <div className="space-y-3">
+                <div className="p-3 rounded-xl bg-[#0E0E15] border border-white/5">
+                  <p className="text-xs font-mono uppercase tracking-wider text-cyan">
+                    1. Build topology
+                  </p>
+                  <p className="text-sm text-dim mt-1">
+                    Assemble layers and validate graph integrity.
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-[#0E0E15] border border-white/5">
+                  <p className="text-xs font-mono uppercase tracking-wider text-violet">
+                    2. Run training
+                  </p>
+                  <p className="text-sm text-dim mt-1">
+                    Observe curves and compare run behavior.
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-[#0E0E15] border border-white/5">
+                  <p className="text-xs font-mono uppercase tracking-wider text-acid">
+                    3. Publish endpoint
+                  </p>
+                  <p className="text-sm text-dim mt-1">
+                    Generate API key and ship inference access.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="flex flex-col md:flex-row md:items-end justify-between mb-6 animate-fade-in-up"
+            style={{ animationDelay: "0.1s" }}
+          >
+            <div className="mb-6 md:mb-0">
+              <h2 className="text-2xl font-heading font-bold text-white mb-2">
+                Project Archive
+              </h2>
+              <p className="text-dim text-sm font-mono">
+                Search, reopen, or retire architecture drafts.
+              </p>
+            </div>
           </div>
 
           {/* Search */}
@@ -149,7 +335,7 @@ const DashboardPage = () => {
             />
             <input
               type="text"
-              placeholder="Search projects..."
+              placeholder="Find by project title..."
               className="w-full bg-[#1A1A28] border border-[#2A2A3A] rounded-xl pl-10 pr-4 py-3 text-sm text-[#E0E0E8] focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all font-mono placeholder:text-[#6B6B80]/50"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -205,7 +391,7 @@ const DashboardPage = () => {
                     </div>
 
                     <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between text-xs text-dim group-hover:text-cyan transition-colors font-mono">
-                      <span>Open workspace</span>
+                      <span>Resume in workspace</span>
                       <ChevronRight
                         size={14}
                         className="group-hover:translate-x-1 transition-transform"
@@ -221,18 +407,18 @@ const DashboardPage = () => {
                 <Layers size={40} />
               </div>
               <h3 className="text-xl font-bold font-heading text-white mb-2">
-                No projects yet
+                No architectures yet
               </h3>
               <p className="text-dim text-sm mb-8 max-w-md">
-                Create your first neural network project to get started with
-                NeuralNet.
+                Start with a blank graph or template and build your first model
+                narrative.
               </p>
               <button
                 className="px-6 py-3 rounded-xl bg-cyan/10 text-cyan border border-cyan/30 hover:bg-cyan/20 hover:shadow-[0_0_20px_rgba(0,242,255,0.2)] transition-all font-mono text-sm flex items-center gap-2"
                 onClick={() => setShowModal(true)}
               >
                 <Plus size={18} />
-                Create Project
+                Start First Build
               </button>
             </div>
           )}
