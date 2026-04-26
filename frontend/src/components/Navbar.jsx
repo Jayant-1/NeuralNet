@@ -26,7 +26,7 @@ export default function Navbar() {
       ref={navRef}
       className={`fixed top-0 left-0 w-full z-[9000] transition-all duration-500 border-0 ${
         scrolled
-          ? "glass-panel border-white/5 py-3"
+          ? "glass-panel py-3"
           : "bg-transparent py-5"
       }`}
     >
